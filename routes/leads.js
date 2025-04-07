@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const generateLeadId = require('../utils/generateId');
 
-// Einfacher Insert mit allen Pflichtfeldern
 router.post('/', async (req, res) => {
   try {
     const {
@@ -11,18 +11,60 @@ router.post('/', async (req, res) => {
       email,
       telefon,
       event_datum,
+      event_startzeit,
+      event_endzeit,
       event_ort,
-      freitext_kunde_raw
+      kundentyp,
+      firmenname,
+      gaesteanzahl,
+      kontaktwunsch,
+      wichtig_raw,
+      extras_raw,
+      preisfragen_raw,
+      anlass_raw,
+      erfahrung_raw,
+      preistyp_raw,
+      ziel_raw,
+      quelle_raw,
+      freitext_kunde_raw,
+      intern_kommentar,
+      ai_typ,
+      ai_kommentar,
+      ai_score_json
     } = req.body;
+
+    const external_id = generateLeadId(); // Optional
 
     await db.query(
       `INSERT INTO lead (
-        vorname, nachname, email, telefon, event_datum, event_ort, freitext_kunde_raw
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [vorname, nachname, email, telefon, event_datum, event_ort, freitext_kunde_raw]
+        external_id, vorname, nachname, email, telefon,
+        event_datum, event_startzeit, event_endzeit, event_ort,
+        kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
+        wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
+        erfahrung_raw, preistyp_raw, ziel_raw, quelle_raw,
+        freitext_kunde_raw, intern_kommentar,
+        ai_typ, ai_kommentar, ai_score_json
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9,
+        $10, $11, $12, $13,
+        $14, $15, $16, $17,
+        $18, $19, $20, $21,
+        $22, $23,
+        $24, $25, $26
+      )`,
+      [
+        external_id, vorname, nachname, email, telefon,
+        event_datum, event_startzeit, event_endzeit, event_ort,
+        kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
+        wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
+        erfahrung_raw, preistyp_raw, ziel_raw, quelle_raw,
+        freitext_kunde_raw, intern_kommentar,
+        ai_typ, ai_kommentar, ai_score_json
+      ]
     );
 
-    res.status(201).json({ message: 'Lead gespeichert' });
+    res.status(201).json({ message: 'Lead gespeichert', lead_id: external_id });
   } catch (error) {
     console.error('Fehler beim Speichern:', error);
     res.status(500).json({ error: 'Serverfehler' });
