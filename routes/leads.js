@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const db = require('../db');
-// const generateLeadId = require('../utils/generateId');
+const generateLeadId = require('../utils/generateId');
 
 router.post('/', async (req, res) => {
   if (req.body.secret !== WEBHOOK_SECRET) {
