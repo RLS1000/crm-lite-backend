@@ -1,3 +1,4 @@
+console.log("✅ Webhook wurde erreicht!");
 const express = require('express');
 const router = express.Router();
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
