@@ -1,14 +1,14 @@
-import express from 'express';
-import db from '../db.js'; // Passe das ggf. an deine Projektstruktur an
-import crypto from 'crypto'; // für UUID
+const express = require('express');
+const db = require('../db');
+const crypto = require('crypto');
 
 const router = express.Router();
 
-// 📩 POST /lead/:id/angebot-link → Angebotslink generieren
+// POST /lead/:id/angebot-link
 router.post('/lead/:id/angebot-link', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = crypto.randomUUID(); // Erzeugt ein sicheres UUID
+    const token = crypto.randomUUID();
 
     await db.query(`
       UPDATE lead
@@ -25,14 +25,12 @@ router.post('/lead/:id/angebot-link', async (req, res) => {
   }
 });
 
-// 📬 GET /angebot/:token → Angebotsdaten abrufen
+// GET /angebot/:token
 router.get('/angebot/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
-    const leadResult = await db.query(`
-      SELECT * FROM lead WHERE angebot_token = $1
-    `, [token]);
+    const leadResult = await db.query(`SELECT * FROM lead WHERE angebot_token = $1`, [token]);
 
     if (leadResult.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Angebot nicht gefunden' });
@@ -48,18 +46,14 @@ router.get('/angebot/:token', async (req, res) => {
       WHERE la.lead_id = $1
     `, [lead.id]);
 
-    res.json({
-      success: true,
-      lead,
-      artikel: artikelResult.rows
-    });
+    res.json({ success: true, lead, artikel: artikelResult.rows });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 📝 POST /angebot/:token/bestaetigen → Angebot bestätigen
+// POST /angebot/:token/bestaetigen
 router.post('/angebot/:token/bestaetigen', async (req, res) => {
   try {
     const { token } = req.params;
@@ -81,4 +75,4 @@ router.post('/angebot/:token/bestaetigen', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;
