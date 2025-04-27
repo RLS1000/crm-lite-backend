@@ -30,7 +30,21 @@ router.get('/angebot/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
-    const leadResult = await db.query(`SELECT * FROM lead WHERE angebot_token = $1`, [token]);
+    const leadResult = await db.query(`
+      SELECT 
+        id,
+        vorname,
+        nachname,
+        email,
+        telefon,
+        firmenname,
+        event_datum,
+        event_startzeit,
+        event_endzeit,
+        event_ort
+      FROM lead
+      WHERE angebot_token = $1
+    `, [token]);
 
     if (leadResult.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Angebot nicht gefunden' });
@@ -39,7 +53,14 @@ router.get('/angebot/:token', async (req, res) => {
     const lead = leadResult.rows[0];
 
     const artikelResult = await db.query(`
-      SELECT la.*, av.variante_name, a.name AS artikel_name
+      SELECT 
+        la.id,
+        la.artikel_variante_id,
+        la.anzahl,
+        la.einzelpreis,
+        la.bemerkung,
+        av.variante_name,
+        a.name AS artikel_name
       FROM lead_artikel la
       JOIN artikel_variante av ON la.artikel_variante_id = av.id
       JOIN artikel a ON av.artikel_id = a.id
