@@ -20,38 +20,41 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const artikelResult = await db.query('SELECT * FROM lead_artikel WHERE lead_id = $1', [id]);
     const artikel = artikelResult.rows;
 
-    // 3. Buchung erstellen
+    // 3. Kunde anlegen
+    const kundeResult = await db.query(`
+      INSERT INTO kunde (vorname, nachname, telefon, email, kundentyp, erstellt_am)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+      RETURNING id
+    `, [
+      lead.vorname,
+      lead.nachname,
+      lead.telefon,
+      lead.email,
+      lead.kundentyp
+    ]);
+    const kundeId = kundeResult.rows[0].id;
+
+    // 4. Buchung anlegen
     const buchungResult = await db.query(`
       INSERT INTO buchung (
-        lead_id,
+        kunde_id,
         status,
-        vorname,
-        nachname,
-        email,
-        telefon,
         event_datum,
         event_startzeit,
         event_endzeit,
-        event_ort,
-        firmenname
-      ) VALUES ($1, 'neu', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        event_anschrift_ort
+      ) VALUES ($1, 'neu', $2, $3, $4, $5)
       RETURNING id
     `, [
-      lead.id,
-      lead.vorname,
-      lead.nachname,
-      lead.email,
-      lead.telefon,
+      kundeId,
       lead.event_datum,
       lead.event_startzeit,
       lead.event_endzeit,
-      lead.event_ort,
-      lead.firmenname
+      lead.event_ort
     ]);
-
     const buchungId = buchungResult.rows[0].id;
 
-    // 4. Artikel zur Buchung hinzufügen
+    // 5. Artikel zur Buchung hinzufügen
     for (const item of artikel) {
       await db.query(`
         INSERT INTO buchung_artikel (buchung_id, artikel_variante_id, anzahl, einzelpreis, bemerkung)
@@ -65,7 +68,7 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
       ]);
     }
 
-    // 5. Lead auf Status "abgeschlossen" setzen
+    // 6. Lead auf Status "abgeschlossen" setzen
     await db.query('UPDATE lead SET status = $1 WHERE id = $2', ['abgeschlossen', id]);
 
     res.json({ success: true, buchungId });
