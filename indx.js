@@ -17,6 +17,9 @@ app.use('/leads', leadRoutes);
 const angebotRoutes = require('./routes/angebot');
 app.use('/api', angebotRoutes); // 👈 Angebote-API
 
+const leadConversionRoutes = require('./routes/lead_conversion');
+app.use('/api', leadConversionRoutes);
+
 // Server starten
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Server läuft auf Port ${PORT}`));
