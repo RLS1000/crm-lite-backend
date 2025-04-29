@@ -8,7 +8,7 @@ const router = express.Router();
 router.post('/lead/:id/convert-to-booking', async (req, res) => {
   try {
     const { id } = req.params;
-    const { rechnungsadresse } = req.body; // Rechnungsdaten aus Frontend
+    const { kontakt, rechnungsadresse } = req.body; // Kontakt + Rechnungsdaten aus Frontend
 
     // 1. Lead holen
     const leadResult = await db.query('SELECT * FROM lead WHERE id = $1', [id]);
@@ -21,7 +21,7 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const artikelResult = await db.query('SELECT * FROM lead_artikel WHERE lead_id = $1', [id]);
     const artikel = artikelResult.rows;
 
-    // 3. Kunde anlegen (mit Anschrift und Rechnungsanschrift)
+    // 3. Kunde anlegen (mit Anschrift + optionaler Rechnungsanschrift)
     const kundeResult = await db.query(`
       INSERT INTO kunde (
         vorname,
@@ -40,12 +40,12 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
       RETURNING id
     `, [
-      lead.vorname,
-      lead.nachname,
-      lead.telefon,
-      lead.email,
-      lead.kundentyp,
-      lead.firmenname,
+      kontakt.vorname,
+      kontakt.nachname,
+      kontakt.telefon,
+      kontakt.email,
+      lead.kundentyp, // aus Lead (nicht veränderbar)
+      kontakt.firmenname || null,
       rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.firma_strasse : rechnungsadresse.strasse,
       rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.firma_plz : rechnungsadresse.plz,
       rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.firma_ort : rechnungsadresse.ort,
@@ -55,7 +55,7 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     ]);
     const kundeId = kundeResult.rows[0].id;
 
-    // 4. Buchung anlegen (Status = "bestätigt" und saubere Felder)
+    // 4. Buchung anlegen (inkl. lead_id speichern!)
     const buchungResult = await db.query(`
       INSERT INTO buchung (
         kunde_id,
@@ -64,15 +64,17 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
         event_startzeit,
         event_endzeit,
         event_anschrift_ort,
+        lead_id,
         erstellt_am
-      ) VALUES ($1, 'bestätigt', $2, $3, $4, $5, NOW())
+      ) VALUES ($1, 'bestätigt', $2, $3, $4, $5, $6, NOW())
       RETURNING id
     `, [
       kundeId,
       lead.event_datum,
       lead.event_startzeit,
       lead.event_endzeit,
-      lead.event_ort
+      lead.event_ort,
+      lead.id
     ]);
     const buchungId = buchungResult.rows[0].id;
 
