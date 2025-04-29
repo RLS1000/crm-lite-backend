@@ -29,7 +29,7 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
         telefon,
         email,
         kundentyp,
-        firmenname,
+        firma,
         anschrift_strasse,
         anschrift_plz,
         anschrift_ort,
