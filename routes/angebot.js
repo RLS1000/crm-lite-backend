@@ -54,19 +54,28 @@ router.get('/angebot/:token', async (req, res) => {
     const lead = leadResult.rows[0];
 
     const artikelResult = await db.query(`
-      SELECT 
-        la.id,
-        la.artikel_variante_id,
-        la.anzahl,
-        la.einzelpreis,
-        la.bemerkung,
-        av.variante_name,
-        a.name AS artikel_name
-      FROM lead_artikel la
-      JOIN artikel_variante av ON la.artikel_variante_id = av.id
-      JOIN artikel a ON av.artikel_id = a.id
-      WHERE la.lead_id = $1
-    `, [lead.id]);
+  SELECT 
+    la.id,
+    la.artikel_variante_id,
+    la.anzahl,
+    la.einzelpreis,
+    la.bemerkung,
+    av.variante_name,
+    a.name AS artikel_name
+  FROM lead_artikel la
+  JOIN artikel_variante av ON la.artikel_variante_id = av.id
+  JOIN artikel a ON av.artikel_id = a.id
+  WHERE la.lead_id = $1
+  ORDER BY
+    CASE
+      WHEN a.name ILIKE '%fotobox%' THEN 1
+      WHEN a.name ILIKE '%hintergrund%' THEN 2
+      WHEN a.name ILIKE '%accessoire%' THEN 3
+      WHEN a.name ILIKE '%service%' THEN 4
+      ELSE 99
+    END
+`, [lead.id]);
+
 
     res.json({ success: true, lead, artikel: artikelResult.rows });
   } catch (error) {
