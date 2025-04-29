@@ -21,38 +21,41 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const artikelResult = await db.query('SELECT * FROM lead_artikel WHERE lead_id = $1', [id]);
     const artikel = artikelResult.rows;
 
-    // 3. Kunde anlegen (mit Anschrift + optionaler Rechnungsanschrift)
-    const kundeResult = await db.query(`
-      INSERT INTO kunde (
-        vorname,
-        nachname,
-        telefon,
-        email,
-        kundentyp,
-        firma,
-        anschrift_strasse,
-        anschrift_plz,
-        anschrift_ort,
-        rechnungsanschrift_strasse,
-        rechnungsanschrift_plz,
-        rechnungsanschrift_ort,
-        erstellt_am
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
-      RETURNING id
-    `, [
-      kontakt.vorname,
-      kontakt.nachname,
-      kontakt.telefon,
-      kontakt.email,
-      lead.kundentyp, // aus Lead (nicht veränderbar)
-      kontakt.firmenname || null,
-      rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.firma_strasse : rechnungsadresse.strasse,
-      rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.firma_plz : rechnungsadresse.plz,
-      rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.firma_ort : rechnungsadresse.ort,
-      !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.strasse : null,
-      !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.plz : null,
-      !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.ort : null
-    ]);
+    // 3. Kunde anlegen (korrektes Mapping mit Rechnungsanschrift)
+const kundeResult = await db.query(`
+  INSERT INTO kunde (
+    vorname,
+    nachname,
+    telefon,
+    email,
+    kundentyp,
+    firma,
+    anschrift_strasse,
+    anschrift_plz,
+    anschrift_ort,
+    rechnungsanschrift_strasse,
+    rechnungsanschrift_plz,
+    rechnungsanschrift_ort,
+    erstellt_am
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+  RETURNING id
+`, [
+  lead.vorname,
+  lead.nachname,
+  lead.telefon,
+  lead.email,
+  lead.kundentyp,
+  lead.firmenname,
+  // normale Anschrift
+  rechnungsadresse.strasse,
+  rechnungsadresse.plz,
+  rechnungsadresse.ort,
+  // abweichende Rechnungsanschrift (nur wenn angegeben)
+  rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.strasse,
+  rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.plz,
+  rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.ort,
+]);
+
     const kundeId = kundeResult.rows[0].id;
 
     // 4. Buchung anlegen (inkl. lead_id speichern!)
