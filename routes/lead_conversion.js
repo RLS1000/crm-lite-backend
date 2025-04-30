@@ -21,17 +21,8 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const artikelResult = await db.query('SELECT * FROM lead_artikel WHERE lead_id = $1', [id]);
     const artikel = artikelResult.rows;
    
+
 // 3. Kunde anlegen (korrektes Mapping mit Formularwerten)
-const anschriftStrasse = istFirmenkunde ? rechnungsadresse.firma_strasse : rechnungsadresse.strasse;
-const anschriftPlz     = istFirmenkunde ? rechnungsadresse.firma_plz : rechnungsadresse.plz;
-const anschriftOrt     = istFirmenkunde ? rechnungsadresse.firma_ort : rechnungsadresse.ort;
-
-const rechnungsStrasse = !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.strasse : null;
-const rechnungsPlz     = !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.plz : null;
-const rechnungsOrt     = !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.ort : null;
-
-const istFirmenkunde = lead.kundentyp?.toLowerCase().includes("firma");
-
 const kundeResult = await db.query(`
   INSERT INTO kunde (
     vorname,
@@ -54,15 +45,24 @@ const kundeResult = await db.query(`
   kontakt.nachname,
   kontakt.telefon,
   kontakt.email,
-  lead.kundentyp,
-  kontakt.firmenname || null,
-  anschriftStrasse,
-  anschriftPlz,
-  anschriftOrt,
-  rechnungsStrasse,
-  rechnungsPlz,
-  rechnungsOrt
+  lead.kundentyp, // wichtig: kommt aus dem Lead
+  kontakt.firmenname,
+  // normale Anschrift
+  istFirmenkunde ? rechnungsadresse.firma_strasse : rechnungsadresse.strasse,
+  istFirmenkunde ? rechnungsadresse.firma_plz : rechnungsadresse.plz,
+  istFirmenkunde ? rechnungsadresse.firma_ort : rechnungsadresse.ort,
+  // abweichende Rechnungsanschrift (nur wenn angegeben)
+  istFirmenkunde && rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.strasse
+    : null,
+  istFirmenkunde && rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.plz
+    : null,
+  istFirmenkunde && rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.ort
+    : null,
 ]);
+
 
 
     const kundeId = kundeResult.rows[0].id;
