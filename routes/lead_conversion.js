@@ -21,29 +21,7 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const artikelResult = await db.query('SELECT * FROM lead_artikel WHERE lead_id = $1', [id]);
     const artikel = artikelResult.rows;
 
-    // 3. Kunde anlegen (korrektes Mapping mit Basis- und ggf. Rechnungsanschrift)
-const istFirmenkunde = lead.kundentyp?.toLowerCase().includes("firma");
-
-const anschrift_strasse = istFirmenkunde
-  ? rechnungsadresse.firma_strasse
-  : rechnungsadresse.strasse;
-const anschrift_plz = istFirmenkunde
-  ? rechnungsadresse.firma_plz
-  : rechnungsadresse.plz;
-const anschrift_ort = istFirmenkunde
-  ? rechnungsadresse.firma_ort
-  : rechnungsadresse.ort;
-
-const rechnungsanschrift_strasse = !rechnungsadresse.gleicheRechnungsadresse
-  ? rechnungsadresse.strasse
-  : null;
-const rechnungsanschrift_plz = !rechnungsadresse.gleicheRechnungsadresse
-  ? rechnungsadresse.plz
-  : null;
-const rechnungsanschrift_ort = !rechnungsadresse.gleicheRechnungsadresse
-  ? rechnungsadresse.ort
-  : null;
-
+    // 3. Kunde anlegen (korrektes Mapping mit Formularwerten)
 const kundeResult = await db.query(`
   INSERT INTO kunde (
     vorname,
@@ -62,18 +40,30 @@ const kundeResult = await db.query(`
   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
   RETURNING id
 `, [
-  rechnungsadresse.vorname,
+  rechnungsadresse.vorname,                            // Eingabewert
   rechnungsadresse.nachname,
   rechnungsadresse.telefon,
   rechnungsadresse.email,
   lead.kundentyp,
   rechnungsadresse.firmenname || null,
-  anschrift_strasse,
-  anschrift_plz,
-  anschrift_ort,
-  rechnungsanschrift_strasse,
-  rechnungsanschrift_plz,
-  rechnungsanschrift_ort
+  rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.firma_strasse
+    : rechnungsadresse.strasse,
+  rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.firma_plz
+    : rechnungsadresse.plz,
+  rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.firma_ort
+    : rechnungsadresse.ort,
+  !rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.strasse
+    : null,
+  !rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.plz
+    : null,
+  !rechnungsadresse.gleicheRechnungsadresse
+    ? rechnungsadresse.ort
+    : null,
 ]);
 
 
