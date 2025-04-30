@@ -40,12 +40,13 @@ const kundeResult = await db.query(`
   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
   RETURNING id
 `, [
-  rechnungsadresse.vorname,                            // Eingabewert
-  rechnungsadresse.nachname,
-  rechnungsadresse.telefon,
-  rechnungsadresse.email,
-  lead.kundentyp,
-  rechnungsadresse.firmenname || null,
+  kontakt.vorname,
+  kontakt.nachname,
+  kontakt.telefon,
+  kontakt.email,
+  lead.kundentyp, // wichtig: kommt aus dem Lead
+  kontakt.firmenname,
+  // normale Anschrift (für Privat oder Firmenadresse)
   rechnungsadresse.gleicheRechnungsadresse
     ? rechnungsadresse.firma_strasse
     : rechnungsadresse.strasse,
@@ -55,17 +56,11 @@ const kundeResult = await db.query(`
   rechnungsadresse.gleicheRechnungsadresse
     ? rechnungsadresse.firma_ort
     : rechnungsadresse.ort,
-  !rechnungsadresse.gleicheRechnungsadresse
-    ? rechnungsadresse.strasse
-    : null,
-  !rechnungsadresse.gleicheRechnungsadresse
-    ? rechnungsadresse.plz
-    : null,
-  !rechnungsadresse.gleicheRechnungsadresse
-    ? rechnungsadresse.ort
-    : null,
+  // abweichende Rechnungsanschrift (nur wenn gesetzt)
+  !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.strasse : null,
+  !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.plz : null,
+  !rechnungsadresse.gleicheRechnungsadresse ? rechnungsadresse.ort : null,
 ]);
-
 
     const kundeId = kundeResult.rows[0].id;
 
