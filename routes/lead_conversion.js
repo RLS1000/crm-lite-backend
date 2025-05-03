@@ -25,9 +25,9 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const anschrift_plz = istFirmenkunde ? rechnungsadresse.firma_plz : rechnungsadresse.plz;
     const anschrift_ort = istFirmenkunde ? rechnungsadresse.firma_ort : rechnungsadresse.ort;
 
-    const rechnungs_strasse = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.strasse;
-    const rechnungs_plz = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.plz;
-    const rechnungs_ort = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.ort;
+    const rechnungs_strasse = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_strasse;
+    const rechnungs_plz = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_plz;
+    const rechnungs_ort = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_ort;
 
     // 👤 Kunde speichern
     const kundeResult = await db.query(`
