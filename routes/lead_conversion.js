@@ -21,9 +21,9 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     // 🧠 Entscheide, was normale Anschrift ist (privat oder firma)
     const istFirmenkunde = lead.kundentyp?.toLowerCase().includes("firma");
 
-    const anschrift_strasse = istFirmenkunde ? rechnungsadresse.firma_strasse : rechnungsadresse.strasse;
-    const anschrift_plz = istFirmenkunde ? rechnungsadresse.firma_plz : rechnungsadresse.plz;
-    const anschrift_ort = istFirmenkunde ? rechnungsadresse.firma_ort : rechnungsadresse.ort;
+    const anschrift_strasse = rechnungsadresse.anschrift_strasse;
+    const anschrift_plz = rechnungsadresse.anschrift_plz;
+    const anschrift_ort = rechnungsadresse.anschrift_ort;
 
     const rechnungs_strasse = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_strasse;
     const rechnungs_plz = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_plz;
