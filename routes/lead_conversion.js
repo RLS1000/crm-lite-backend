@@ -18,7 +18,7 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
 
     // ✅ Neu: Wenn bereits bestätigt, keine weitere Buchung zulassen
     if (lead.angebot_bestaetigt === true) {
-      return res.status(400).json({ success: false, message: 'Angebot wurde bereits bestätigt.' });
+      return res.status(200).json({ success: false, message: 'Angebot wurde bereits bestätigt.' });
     }
 
     // 2. Artikel holen
