@@ -42,7 +42,8 @@ router.get('/angebot/:token', async (req, res) => {
         event_startzeit,
         event_endzeit,
         event_ort,
-        kundentyp
+        kundentyp,
+        angebot_bestaetigt
       FROM lead
       WHERE angebot_token = $1
     `, [token]);
