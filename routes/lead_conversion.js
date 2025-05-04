@@ -9,27 +9,36 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const { id } = req.params;
     const { kontakt, rechnungsadresse } = req.body;
 
+    // 1. Lead laden
     const leadResult = await db.query('SELECT * FROM lead WHERE id = $1', [id]);
     if (leadResult.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Lead nicht gefunden' });
     }
     const lead = leadResult.rows[0];
 
+    // 2. Artikel holen
     const artikelResult = await db.query('SELECT * FROM lead_artikel WHERE lead_id = $1', [id]);
     const artikel = artikelResult.rows;
-
-    // 🧠 Entscheide, was normale Anschrift ist (privat oder firma)
-    const istFirmenkunde = lead.kundentyp?.toLowerCase().includes("firma");
-
+    
+    // 3. Anschrift vorbereiten
     const anschrift_strasse = rechnungsadresse.anschrift_strasse;
     const anschrift_plz = rechnungsadresse.anschrift_plz;
     const anschrift_ort = rechnungsadresse.anschrift_ort;
 
-    const rechnungs_strasse = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_strasse;
-    const rechnungs_plz = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_plz;
-    const rechnungs_ort = rechnungsadresse.gleicheRechnungsadresse ? null : rechnungsadresse.rechnungsanschrift_ort;
+    // Rechnungsanschrift: entweder abweichend oder gleich wie normale Anschrift
+    const rechnungs_strasse = rechnungsadresse.gleicheRechnungsadresse
+      ? anschrift_strasse
+      : rechnungsadresse.rechnungsanschrift_strasse;
 
-    // 👤 Kunde speichern
+    const rechnungs_plz = rechnungsadresse.gleicheRechnungsadresse
+      ? anschrift_plz
+      : rechnungsadresse.rechnungsanschrift_plz;
+
+    const rechnungs_ort = rechnungsadresse.gleicheRechnungsadresse
+      ? anschrift_ort
+      : rechnungsadresse.rechnungsanschrift_ort;
+
+    // 4. Kunde speichern
     const kundeResult = await db.query(`
       INSERT INTO kunde (
         vorname, nachname, telefon, email, kundentyp, firma,
