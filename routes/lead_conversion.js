@@ -16,6 +16,11 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     }
     const lead = leadResult.rows[0];
 
+    // ✅ Neu: Wenn bereits bestätigt, keine weitere Buchung zulassen
+    if (lead.angebot_bestaetigt === true) {
+      return res.status(400).json({ success: false, message: 'Angebot wurde bereits bestätigt.' });
+    }
+
     // 2. Artikel holen
     const artikelResult = await db.query('SELECT * FROM lead_artikel WHERE lead_id = $1', [id]);
     const artikel = artikelResult.rows;
@@ -95,7 +100,13 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     }
 
     // ✅ Lead abschließen
-    await db.query('UPDATE lead SET status = $1 WHERE id = $2', ['abgeschlossen', id]);
+        await db.query(`
+      UPDATE lead
+      SET status = 'abgeschlossen',
+          angebot_bestaetigt = true,
+          angebot_bestaetigt_am = NOW()
+      WHERE id = $1
+    `, [id]);
 
     res.json({ success: true, buchungId });
   } catch (error) {
