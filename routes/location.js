@@ -29,7 +29,7 @@ router.post('/locations', async (req, res) => {
 // 📤 Alle Locations abrufen (z. B. für Dropdowns)
 router.get('/locations', async (_req, res) => {
   try {
-    const result = await db.query(`SELECT id, name, ort FROM location ORDER BY name ASC`);
+    const result = await db.query(`SELECT * FROM location ORDER BY name ASC`);
     res.json({ success: true, locations: result.rows });
   } catch (error) {
     console.error('Fehler beim Laden der Locations:', error);
