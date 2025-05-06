@@ -5,9 +5,21 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
+const allowedOrigins = [
+  "https://crm-lite-angebot-frontend-production.up.railway.app",
+  "https://buchung.mrknips.de"
+];
+
 app.use(cors({
-  origin: "https://crm-lite-angebot-frontend-production.up.railway.app",
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Nicht erlaubter Origin: " + origin));
+  }
 }));
+
+
 app.use(express.json());
 
 // Routes
