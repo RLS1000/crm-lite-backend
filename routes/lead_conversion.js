@@ -102,7 +102,7 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     // ✅ Lead abschließen
         await db.query(`
       UPDATE lead
-      SET status = 'abgeschlossen',
+      SET status = 'bestaetigt',
           angebot_bestaetigt = true,
           angebot_bestaetigt_am = NOW()
       WHERE id = $1
