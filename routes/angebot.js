@@ -195,7 +195,7 @@ router.get('/testmail', async (req, res) => {
       vorname: 'Test',
       nachname: 'Kunde',
       name: 'Test Kunde',
-      email: 'test@example.com',
+      email: 'info@mrknips.de',
       firmenname: 'Demo GmbH',
       event_datum: '2025-08-01',
       bestaetigt_am: '2025-07-13',
