@@ -1,4 +1,3 @@
-// crm-lite-backend/services/mailService.js
 const nodemailer = require("nodemailer");
 const db = require("../db");
 
@@ -28,22 +27,38 @@ async function getSMTPConfig() {
   };
 }
 
-async function sendMail({ to, subject, html }) {
-  const config = await getSMTPConfig();
+async function sendMail({ to, subject, html, bcc, replyTo }) {
+  try {
+    const config = await getSMTPConfig();
 
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: config.auth,
-  });
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.auth,
+    });
 
-  return transporter.sendMail({
-    from: config.from,
-    to,
-    subject,
-    html,
-  });
+    const mailOptions = {
+      from: config.from,
+      to,
+      subject,
+      html,
+    };
+
+    if (bcc) mailOptions.bcc = bcc;
+    if (replyTo) mailOptions.replyTo = replyTo;
+
+    console.log("📤 Sende Mail an:", to);
+    console.log("📝 Betreff:", subject);
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log("✅ Mail gesendet:", result.messageId);
+
+    return result;
+  } catch (error) {
+    console.error("❌ Fehler beim Senden der Mail:", error.message);
+    throw error; // wichtig: gib Fehler weiter, damit auch in /angebot/... catch ausgeführt wird
+  }
 }
 
 module.exports = { sendMail };
