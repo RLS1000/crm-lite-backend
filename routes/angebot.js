@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const crypto = require('crypto');
+const { sendMail } = require('../services/mailService'); // ✅ Mail-Service einbinden
 
 const router = express.Router();
 
@@ -55,28 +56,27 @@ router.get('/angebot/:token', async (req, res) => {
     const lead = leadResult.rows[0];
 
     const artikelResult = await db.query(`
-  SELECT 
-    la.id,
-    la.artikel_variante_id,
-    la.anzahl,
-    la.einzelpreis,
-    la.bemerkung,
-    av.variante_name,
-    a.name AS artikel_name
-  FROM lead_artikel la
-  JOIN artikel_variante av ON la.artikel_variante_id = av.id
-  JOIN artikel a ON av.artikel_id = a.id
-  WHERE la.lead_id = $1
-  ORDER BY
-    CASE
-      WHEN a.name ILIKE '%fotobox%' THEN 1
-      WHEN a.name ILIKE '%hintergrund%' THEN 2
-      WHEN a.name ILIKE '%accessoire%' THEN 3
-      WHEN a.name ILIKE '%service%' THEN 4
-      ELSE 99
-    END
-`, [lead.id]);
-
+      SELECT 
+        la.id,
+        la.artikel_variante_id,
+        la.anzahl,
+        la.einzelpreis,
+        la.bemerkung,
+        av.variante_name,
+        a.name AS artikel_name
+      FROM lead_artikel la
+      JOIN artikel_variante av ON la.artikel_variante_id = av.id
+      JOIN artikel a ON av.artikel_id = a.id
+      WHERE la.lead_id = $1
+      ORDER BY
+        CASE
+          WHEN a.name ILIKE '%fotobox%' THEN 1
+          WHEN a.name ILIKE '%hintergrund%' THEN 2
+          WHEN a.name ILIKE '%accessoire%' THEN 3
+          WHEN a.name ILIKE '%service%' THEN 4
+          ELSE 99
+        END
+    `, [lead.id]);
 
     res.json({ success: true, lead, artikel: artikelResult.rows });
   } catch (error) {
@@ -91,6 +91,7 @@ router.post('/angebot/:token/bestaetigen', async (req, res) => {
     const { token } = req.params;
     const { rechnungsadresse } = req.body;
 
+    // 1. Lead bestätigen
     await db.query(`
       UPDATE lead
       SET angebot_bestaetigt_am = NOW(),
@@ -100,9 +101,81 @@ router.post('/angebot/:token/bestaetigen', async (req, res) => {
       WHERE angebot_token = $2
     `, [rechnungsadresse, token]);
 
+    // 2. Lead-Daten laden
+    const leadResult = await db.query(`
+      SELECT id, vorname, nachname, email, firmenname, event_datum, angebot_bestaetigt_am
+      FROM lead
+      WHERE angebot_token = $1
+    `, [token]);
+
+    if (!leadResult.rows.length) {
+      return res.status(404).json({ success: false, message: 'Lead nicht gefunden' });
+    }
+
+    const lead = leadResult.rows[0];
+
+    // 3. Artikel laden für Platzhalter {{artikel}}
+    const artikelResult = await db.query(`
+      SELECT 
+        a.name AS artikel_name,
+        av.variante_name,
+        la.anzahl,
+        la.einzelpreis
+      FROM lead_artikel la
+      JOIN artikel_variante av ON la.artikel_variante_id = av.id
+      JOIN artikel a ON av.artikel_id = a.id
+      WHERE la.lead_id = $1
+    `, [lead.id]);
+
+    const artikelHTML = artikelResult.rows.map(a =>
+      `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${a.einzelpreis} €)`
+    ).join('<br>');
+
+    // 4. Platzhalterdaten vorbereiten
+    const mailData = {
+      name: `${lead.vorname} ${lead.nachname}`,
+      vorname: lead.vorname,
+      nachname: lead.nachname,
+      email: lead.email,
+      firmenname: lead.firmenname,
+      event_datum: lead.event_datum,
+      bestaetigt_am: lead.angebot_bestaetigt_am,
+      artikel: artikelHTML,
+      agb_link: 'https://deinedomain.de/agb.pdf',
+      dsgvo_link: 'https://deinedomain.de/datenschutz.pdf',
+    };
+
+    const replaceVars = (template, data) =>
+      template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
+
+    // 5. Aktive Templates zum Event „angebot.bestaetigt“ laden
+    const eventTemplatesResult = await db.query(`
+      SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
+      FROM email_events e
+      JOIN system_templates t ON e.template_key = t.key
+      WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
+    `);
+
+    const templates = eventTemplatesResult.rows;
+
+    // 6. Mailversand pro Template
+    for (const tpl of templates) {
+      const to = replaceVars(tpl.recipient || lead.email, mailData);
+      const subject = replaceVars(tpl.subject, mailData);
+      const html = replaceVars(tpl.content, mailData);
+
+      await sendMail({
+        to,
+        subject,
+        html,
+        bcc: tpl.bcc,
+        replyTo: tpl.reply_to
+      });
+    }
+
     res.json({ success: true });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Fehler bei Angebotsbestätigung:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
