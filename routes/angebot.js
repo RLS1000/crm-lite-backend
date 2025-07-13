@@ -230,4 +230,73 @@ router.get('/testmail', async (req, res) => {
   }
 });
 
+// TEST: /api/testmail
+router.get('/testmail', async (req, res) => {
+  try {
+    console.log("📨 Testmail-Route erreicht!");
+
+    // Dummy-Lead-Daten simulieren
+    const lead = {
+      vorname: 'Max',
+      nachname: 'Mustermann',
+      email: 'test@mrknips.de',
+      firmenname: 'Testfirma',
+      event_datum: '2025-08-01',
+      angebot_bestaetigt_am: new Date().toISOString(),
+      id: 9999, // Fiktive ID
+    };
+
+    // Leerer Artikel (optional)
+    const artikelHTML = `• Fotobox Classic – Basic (1 × 199 €)<br>• Hintergrund – Weiß (1 × 0 €)`;
+
+    const mailData = {
+      name: `${lead.vorname} ${lead.nachname}`,
+      vorname: lead.vorname,
+      nachname: lead.nachname,
+      email: lead.email,
+      firmenname: lead.firmenname,
+      event_datum: lead.event_datum,
+      bestaetigt_am: lead.angebot_bestaetigt_am,
+      artikel: artikelHTML,
+      agb_link: 'https://deinedomain.de/agb.pdf',
+      dsgvo_link: 'https://deinedomain.de/datenschutz.pdf',
+    };
+
+    const replaceVars = (template, data) =>
+      template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
+
+    const tplResult = await db.query(`
+      SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
+      FROM email_events e
+      JOIN system_templates t ON e.template_key = t.key
+      WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
+    `);
+
+    const templates = tplResult.rows;
+
+    for (const tpl of templates) {
+      const to = replaceVars(tpl.recipient || lead.email, mailData);
+      const subject = replaceVars(tpl.subject, mailData);
+      const html = replaceVars(tpl.content, mailData);
+
+      console.log(`📤 Sende Test-Mail an: ${to}`);
+
+      await sendMail({
+        to,
+        subject,
+        html,
+        bcc: tpl.bcc,
+        replyTo: tpl.reply_to
+      });
+
+      console.log(`✅ Testmail erfolgreich an ${to} gesendet.`);
+    }
+
+    res.json({ success: true, info: `Testmail(s) versendet an ${lead.email}` });
+  } catch (error) {
+    console.error("❌ Fehler bei Testmail:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
