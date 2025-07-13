@@ -22,7 +22,7 @@ async function getSMTPConfig() {
       user: config.smtp_user,
       pass: config.smtp_pass,
     },
-    from: config.email_from,
+    from: config.email_from || config.smtp_user, // 👈 Fallback: Falls email_from fehlt
     empfaenger_betreiber: config.email_betreiber,
   };
 }
@@ -36,6 +36,8 @@ async function sendMail({ to, subject, html, bcc, replyTo }) {
       port: config.port,
       secure: config.secure,
       auth: config.auth,
+      logger: true,       // ✅ SMTP-Verbindung loggen
+      debug: true         // ✅ genaue SMTP-Kommunikation zeigen
     });
 
     const mailOptions = {
@@ -57,7 +59,7 @@ async function sendMail({ to, subject, html, bcc, replyTo }) {
     return result;
   } catch (error) {
     console.error("❌ Fehler beim Senden der Mail:", error.message);
-    throw error; // wichtig: gib Fehler weiter, damit auch in /angebot/... catch ausgeführt wird
+    throw error;
   }
 }
 
