@@ -158,11 +158,17 @@ router.post('/angebot/:token/bestaetigen', async (req, res) => {
 
     const templates = eventTemplatesResult.rows;
 
+    console.log(`📬 Starte Mailversand für ${templates.length} Templates…`);
+
     // 6. Mailversand pro Template
     for (const tpl of templates) {
       const to = replaceVars(tpl.recipient || lead.email, mailData);
       const subject = replaceVars(tpl.subject, mailData);
       const html = replaceVars(tpl.content, mailData);
+
+      console.log("➡️ Template:", tpl.key);
+      console.log("👤 Empfänger:", to);
+      console.log("📝 Betreff:", subject);
 
       await sendMail({
         to,
@@ -171,12 +177,56 @@ router.post('/angebot/:token/bestaetigen', async (req, res) => {
         bcc: tpl.bcc,
         replyTo: tpl.reply_to
       });
+      console.log("✅ Mail versendet:", to);
     }
+
 
     res.json({ success: true });
   } catch (error) {
     console.error("❌ Fehler bei Angebotsbestätigung:", error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /testmail
+router.get('/testmail', async (req, res) => {
+  try {
+    const dummyData = {
+      vorname: 'Test',
+      nachname: 'Kunde',
+      name: 'Test Kunde',
+      email: 'test@example.com',
+      firmenname: 'Demo GmbH',
+      event_datum: '2025-08-01',
+      bestaetigt_am: '2025-07-13',
+      artikel: '• Fotobox Basic (1 × 299 €)',
+      agb_link: 'https://deinedomain.de/agb.pdf',
+      dsgvo_link: 'https://deinedomain.de/datenschutz.pdf',
+    };
+
+    const eventTemplatesResult = await db.query(`
+      SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
+      FROM email_events e
+      JOIN system_templates t ON e.template_key = t.key
+      WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
+    `);
+
+    const templates = eventTemplatesResult.rows;
+    const replaceVars = (template, data) =>
+      template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
+
+    for (const tpl of templates) {
+      const to = replaceVars(tpl.recipient || dummyData.email, dummyData);
+      const subject = replaceVars(tpl.subject, dummyData);
+      const html = replaceVars(tpl.content, dummyData);
+
+      await sendMail({ to, subject, html });
+    }
+
+    res.json({ success: true, message: 'Testmail(s) gesendet' });
+  } catch (err) {
+    console.error("❌ Fehler bei Testmail:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
