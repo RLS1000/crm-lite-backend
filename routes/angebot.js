@@ -3,6 +3,7 @@ const express = require('express');
 const db = require('../db');
 const crypto = require('crypto');
 const { convertLeadToBooking } = require('../services/bookingService');
+const { sendMail } = require('../services/mailService'); // ✅ Mailversand für Testmail
 
 const router = express.Router();
 
