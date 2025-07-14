@@ -130,6 +130,10 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
     WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
   `);
   const templates = eventTemplatesResult.rows;
+  console.log(`📦 ${templates.length} Templates für angebot.bestaetigt geladen`);
+if (templates.length === 0) {
+  console.warn("⚠️ Keine aktiven Templates gefunden!");
+}
 
   // 10. Mailversand
   for (const tpl of templates) {
