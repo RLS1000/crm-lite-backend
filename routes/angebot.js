@@ -84,4 +84,63 @@ router.post('/angebot/:token/bestaetigen', async (req, res) => {
   }
 });
 
+// GET /api/testmail
+router.get('/testmail', async (req, res) => {
+  try {
+    console.log("📨 Testmail-Route erreicht!");
+
+    const dummyData = {
+      name: 'Max Mustermann',
+      vorname: 'Max',
+      nachname: 'Mustermann',
+      email: 'info@mrknips.de',
+      telefon: '0123456789',
+      firmenname: 'Demo GmbH',
+      kundentyp: 'firma',
+      event_datum: '2025-08-01',
+      event_startzeit: '18:00',
+      event_endzeit: '00:00',
+      event_ort: 'Berlin',
+      artikel: '• Fotobox – Classic (1 × 299 €)<br>• Hintergrund – Weiß (1 × 0 €)',
+      agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
+      dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
+    };
+
+    const replaceVars = (template, data) =>
+      template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
+
+    const tplResult = await db.query(`
+      SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
+      FROM email_events e
+      JOIN system_templates t ON e.template_key = t.key
+      WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
+    `);
+
+    const templates = tplResult.rows;
+
+    for (const tpl of templates) {
+      const to = replaceVars(tpl.recipient || dummyData.email, dummyData);
+      const subject = replaceVars(tpl.subject, dummyData);
+      const html = replaceVars(tpl.content, dummyData);
+
+      console.log(`📤 Sende Test-Mail an: ${to}`);
+
+      await sendMail({
+        to,
+        subject,
+        html,
+        bcc: tpl.bcc,
+        replyTo: tpl.reply_to
+      });
+
+      console.log(`✅ Testmail erfolgreich an ${to} gesendet.`);
+    }
+
+    res.json({ success: true, info: `Testmail(s) versendet.` });
+  } catch (error) {
+    console.error("❌ Fehler bei Testmail:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
