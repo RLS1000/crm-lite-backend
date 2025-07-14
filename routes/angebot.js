@@ -94,7 +94,7 @@ router.get('/testmail', async (req, res) => {
       name: 'Max Mustermann',
       vorname: 'Max',
       nachname: 'Mustermann',
-      email: 'info@mrknips.de',
+      email: 'test-tm7msz9c7@srv1.mail-tester.com',
       telefon: '0123456789',
       firmenname: 'Demo GmbH',
       kundentyp: 'firma',
