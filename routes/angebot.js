@@ -131,18 +131,25 @@ router.post('/angebot/:token/bestaetigen', async (req, res) => {
       `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${a.einzelpreis} €)`
     ).join('<br>');
 
-    // 4. Platzhalterdaten vorbereiten
+    // 4. c vorbereiten
     const mailData = {
       name: `${lead.vorname} ${lead.nachname}`,
       vorname: lead.vorname,
       nachname: lead.nachname,
       email: lead.email,
+      telefon: lead.telefon,
       firmenname: lead.firmenname,
+      kundentyp: lead.kundentyp,
+      rechnungsadresse: lead.rechnungsadresse,
       event_datum: lead.event_datum,
+      event_startzeit: lead.event_startzeit,
+      event_endzeit: lead.event_endzeit,
+      event_ort: lead.event_ort,
       bestaetigt_am: lead.angebot_bestaetigt_am,
       artikel: artikelHTML,
-      agb_link: 'https://deinedomain.de/agb.pdf',
-      dsgvo_link: 'https://deinedomain.de/datenschutz.pdf',
+      gesamtpreis: summe.toFixed(2) + " €",
+      agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
+      dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
     };
 
     const replaceVars = (template, data) =>
