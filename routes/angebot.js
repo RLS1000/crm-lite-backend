@@ -65,6 +65,7 @@ router.get('/angebot/:token', async (req, res) => {
 
 // ✅ Neu: Bestätigung und Umwandlung zentral
 router.post('/angebot/:token/bestaetigen', async (req, res) => {
+  console.log("📩 POST /angebot/:token/bestaetigen erreicht mit:", req.params, req.body);
   try {
     const { token } = req.params;
     const { kontakt, rechnungsadresse } = req.body;
