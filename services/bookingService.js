@@ -1,7 +1,7 @@
 // services/bookingService.js
 const db = require('../db');
 const { sendMail } = require('./mailService');
-
+console.log("🚀 convertLeadToBooking gestartet mit:", { leadId, kontakt, rechnungsadresse });
 async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
   // 1. Lead laden
   const leadResult = await db.query('SELECT * FROM lead WHERE id = $1', [leadId]);
