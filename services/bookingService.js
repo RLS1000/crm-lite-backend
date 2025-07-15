@@ -2,6 +2,53 @@
 const db = require('../db');
 const { sendMail } = require('./mailService');
 
+async function testBookingMail() {
+  const mailData = {
+    name: 'Max Mustermann',
+    vorname: 'Max',
+    nachname: 'Mustermann',
+    email: 'test-tm7msz9c7@srv1.mail-tester.com',
+    telefon: '0123456789',
+    firmenname: 'Demo GmbH',
+    kundentyp: 'firma',
+    event_datum: '2025-08-01',
+    event_startzeit: '18:00',
+    event_endzeit: '00:00',
+    event_ort: 'Berlin',
+    artikel: '• Fotobox – Classic (1 × 299 €)<br>• Hintergrund – Weiß (1 × 0 €)',
+    agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
+    dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
+  };
+
+  console.log("🚀 Testmail im bookingService gestartet…");
+
+  const tplResult = await db.query(`
+    SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
+    FROM email_events e
+    JOIN system_templates t ON e.template_key = t.key
+    WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
+  `);
+
+  const templates = tplResult.rows;
+
+  for (const tpl of templates) {
+    const replaceVars = (template, data) =>
+      template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
+
+    const to = replaceVars(tpl.recipient || mailData.email, mailData);
+    const subject = replaceVars(tpl.subject, mailData);
+    const html = replaceVars(tpl.content, mailData);
+
+    console.log(`📤 (Service) Sende Test-Mail an: ${to}`);
+
+    await sendMail({ to, subject, html, bcc: tpl.bcc, replyTo: tpl.reply_to });
+
+    console.log(`✅ (Service) Testmail erfolgreich an ${to} gesendet.`);
+  }
+
+  return { success: true, info: "Testmail(s) versendet über bookingService." };
+}
+
 async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
 console.log("🚀 convertLeadToBooking gestartet mit:", { leadId, kontakt, rechnungsadresse });
   // 1. Lead laden
@@ -159,53 +206,6 @@ if (templates.length === 0) {
 
   
   return { success: true, buchungId };
-}
-
-async function testBookingMail() {
-  const mailData = {
-    name: 'Max Mustermann',
-    vorname: 'Max',
-    nachname: 'Mustermann',
-    email: 'test-tm7msz9c7@srv1.mail-tester.com',
-    telefon: '0123456789',
-    firmenname: 'Demo GmbH',
-    kundentyp: 'firma',
-    event_datum: '2025-08-01',
-    event_startzeit: '18:00',
-    event_endzeit: '00:00',
-    event_ort: 'Berlin',
-    artikel: '• Fotobox – Classic (1 × 299 €)<br>• Hintergrund – Weiß (1 × 0 €)',
-    agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
-    dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
-  };
-
-  console.log("🚀 Testmail im bookingService gestartet…");
-
-  const tplResult = await db.query(`
-    SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
-    FROM email_events e
-    JOIN system_templates t ON e.template_key = t.key
-    WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
-  `);
-
-  const templates = tplResult.rows;
-
-  for (const tpl of templates) {
-    const replaceVars = (template, data) =>
-      template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
-
-    const to = replaceVars(tpl.recipient || mailData.email, mailData);
-    const subject = replaceVars(tpl.subject, mailData);
-    const html = replaceVars(tpl.content, mailData);
-
-    console.log(`📤 (Service) Sende Test-Mail an: ${to}`);
-
-    await sendMail({ to, subject, html, bcc: tpl.bcc, replyTo: tpl.reply_to });
-
-    console.log(`✅ (Service) Testmail erfolgreich an ${to} gesendet.`);
-  }
-
-  return { success: true, info: "Testmail(s) versendet über bookingService." };
 }
 
 module.exports = { convertLeadToBooking, testBookingMail };
