@@ -154,6 +154,10 @@ if (templates.length === 0) {
     });
   }
 
+  console.log("📨 Buchung erfolgreich – führe testBookingMail() zu Debugzwecken aus…");
+  await testBookingMail(); // ❗ Nur vorübergehend zu Debugzwecken
+
+  
   return { success: true, buchungId };
 }
 
