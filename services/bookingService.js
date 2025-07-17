@@ -1,6 +1,6 @@
 // services/bookingService.js
 const db = require('../db');
-// const { sendMail } = require('./mailService');
+const { sendMail } = require('./mailService');
 
 async function testBookingMail() {
   const mailData = {
