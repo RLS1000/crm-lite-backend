@@ -50,12 +50,11 @@ async function testBookingMail() {
 }
 
 async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
-console.log("🚀 convertLeadToBooking gestartet mit:", { leadId, kontakt, rechnungsadresse });
+  console.log("🚀 convertLeadToBooking gestartet mit:", { leadId, kontakt, rechnungsadresse });
+
   // 1. Lead laden
   const leadResult = await db.query('SELECT * FROM lead WHERE id = $1', [leadId]);
-  if (!leadResult.rows.length) {
-    throw new Error('Lead nicht gefunden');
-  }
+  if (!leadResult.rows.length) throw new Error('Lead nicht gefunden');
   const lead = leadResult.rows[0];
 
   if (lead.angebot_bestaetigt === true) {
@@ -148,29 +147,60 @@ console.log("🚀 convertLeadToBooking gestartet mit:", { leadId, kontakt, rechn
     WHERE id = $1
   `, [leadId]);
 
-  // 8. Maildaten vorbereiten
-  const artikelHTML = artikel.map(a =>
-    `• ${a.artikel_name || 'Artikel'} – ${a.variante_name || ''} (${a.anzahl} × ${a.einzelpreis} €)`
+  // 8. ✨ Buchung + Kunde erneut laden
+  const buchungData = await db.query(`
+    SELECT b.*, 
+           k.vorname, k.nachname, k.email, k.telefon, k.kundentyp, k.firma,
+           k.anschrift_strasse, k.anschrift_plz, k.anschrift_ort,
+           k.rechnungsanschrift_strasse, k.rechnungsanschrift_plz, k.rechnungsanschrift_ort
+    FROM buchung b
+    JOIN kunde k ON b.kunde_id = k.id
+    WHERE b.id = $1
+  `, [buchungId]);
+  const buchung = buchungData.rows[0];
+
+  const buchungArtikelResult = await db.query(`
+    SELECT ba.*, av.variante_name, a.name AS artikel_name
+    FROM buchung_artikel ba
+    JOIN artikel_variante av ON ba.artikel_variante_id = av.id
+    JOIN artikel a ON av.artikel_id = a.id
+    WHERE ba.buchung_id = $1
+  `, [buchungId]);
+  const buchungArtikel = buchungArtikelResult.rows;
+
+  // 9. ✉️ Maildaten vorbereiten
+  const artikelHTML = buchungArtikel.map(a =>
+    `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${parseFloat(a.einzelpreis).toFixed(2)} €)`
   ).join('<br>');
 
   const mailData = {
-    name: `${kontakt.vorname} ${kontakt.nachname}`,
-    vorname: kontakt.vorname,
-    nachname: kontakt.nachname,
-    email: kontakt.email,
-    telefon: kontakt.telefon,
-    firmenname: kontakt.firmenname,
-    kundentyp: lead.kundentyp,
-    event_datum: lead.event_datum,
-    event_startzeit: lead.event_startzeit,
-    event_endzeit: lead.event_endzeit,
-    event_ort: lead.event_ort,
+    name: `${buchung.vorname} ${buchung.nachname}`,
+    vorname: buchung.vorname,
+    nachname: buchung.nachname,
+    email: buchung.email,
+    telefon: buchung.telefon,
+    firmenname: buchung.firma,
+    kundentyp: buchung.kundentyp,
+
+    anschrift_strasse: buchung.anschrift_strasse,
+    anschrift_plz: buchung.anschrift_plz,
+    anschrift_ort: buchung.anschrift_ort,
+    rechnungsanschrift_strasse: buchung.rechnungsanschrift_strasse,
+    rechnungsanschrift_plz: buchung.rechnungsanschrift_plz,
+    rechnungsanschrift_ort: buchung.rechnungsanschrift_ort,
+
+    event_datum: new Date(buchung.event_datum).toLocaleDateString("de-DE"),
+    event_startzeit: buchung.event_startzeit?.slice(0, 5),
+    event_endzeit: buchung.event_endzeit?.slice(0, 5),
+    event_ort: buchung.event_anschrift_ort,
+
     artikel: artikelHTML,
+
     agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
     dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
   };
 
-  // 9. Templates laden
+  // 10. Templates laden
   const eventTemplatesResult = await db.query(`
     SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
     FROM email_events e
@@ -178,19 +208,20 @@ console.log("🚀 convertLeadToBooking gestartet mit:", { leadId, kontakt, rechn
     WHERE e.event_key = 'angebot.bestaetigt' AND e.enabled = TRUE
   `);
   const templates = eventTemplatesResult.rows;
-  console.log(`📦 ${templates.length} Templates für angebot.bestaetigt geladen`);
-if (templates.length === 0) {
-  console.warn("⚠️ Keine aktiven Templates gefunden!");
-}
 
-  // 10. Mailversand
+  // 11. 📬 Mailversand (optional mit Delay)
   for (const tpl of templates) {
     const replaceVars = (template, data) =>
       template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
 
-    const to = replaceVars(tpl.recipient || kontakt.email, mailData);
+    const to = replaceVars(tpl.recipient || mailData.email, mailData);
     const subject = replaceVars(tpl.subject, mailData);
     const html = replaceVars(tpl.content, mailData);
+
+    console.log("📤 Sende Bestätigung an:", to);
+
+    // ⏳ Optional: Verzögerung per setTimeout
+    // await new Promise(resolve => setTimeout(resolve, 60000)); // ← 60s Delay
 
     await sendMail({
       to,
