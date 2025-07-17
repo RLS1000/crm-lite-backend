@@ -201,15 +201,15 @@ if (templates.length === 0) {
     });
   }
 
-  console.log("📨 Buchung erfolgreich – führe testBookingMail() zu Debugzwecken aus…");
+//  console.log("📨 Buchung erfolgreich – führe testBookingMail() zu Debugzwecken aus…");
   
-  try {
-  console.log("📨 Buchung erfolgreich – führe testBookingMail() zu Debugzwecken aus…");
-  await testBookingMail();
-  console.log("✅ testBookingMail() erfolgreich beendet.");
-} catch (err) {
-  console.warn("⚠️ Fehler bei testBookingMail():", err.message);
-}
+//  try {
+//  console.log("📨 Buchung erfolgreich – führe testBookingMail() zu Debugzwecken aus…");
+//  await testBookingMail();
+//  console.log("✅ testBookingMail() erfolgreich beendet.");
+//} catch (err) {
+//  console.warn("⚠️ Fehler bei testBookingMail():", err.message);
+//}
 
   
   return { success: true, buchungId };
