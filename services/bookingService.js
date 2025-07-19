@@ -168,6 +168,19 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
   `, [buchungId]);
   const buchungArtikel = buchungArtikelResult.rows;
 
+  const artikelTypReihenfolge = {
+    'Fotobox': 1,
+    'Extra': 2,
+    'Service': 3,
+    'Lieferung': 4
+    };
+
+    buchungArtikel.sort((a, b) => {
+      const rA = artikelTypReihenfolge[a.typ] || 99;
+      const rB = artikelTypReihenfolge[b.typ] || 99;
+      return rA - rB || a.artikel_name.localeCompare(b.artikel_name);
+    });
+
   // 9. ✉️ Maildaten vorbereiten
   const artikelHTML = buchungArtikel.map(a =>
     `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${parseFloat(a.einzelpreis).toFixed(2)} €)`
