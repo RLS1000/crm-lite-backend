@@ -7,12 +7,15 @@ const generateLeadId = require('../utils/generateId');
 
 router.post('/', async (req, res) => {
   if (req.body.secret !== WEBHOOK_SECRET) {
-      console.warn('❌ Ungültiger Webhook-Zugriff:', req.body.secret);
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    
+    console.warn('❌ Ungültiger Webhook-Zugriff:', req.body.secret);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   try {
     const {
+      // ✅ NEU optional vom Aufrufer mitgebbar (für spätere Klone)
+      group_id: incomingGroupId,
+
       vorname,
       nachname,
       email,
@@ -40,11 +43,19 @@ router.post('/', async (req, res) => {
       ai_score_json
     } = req.body;
 
-    const external_id = generateLeadId(); // Optional
+    // ✅ Jede Anfrage bekommt eine eindeutige external_id
+    const external_id = generateLeadId();
+
+    // ✅ Gruppen-ID-Strategie:
+    // - Wenn vom Client eine group_id mitkommt → nutzen
+    // - Sonst erste Anfrage ihrer Gruppe → group_id = external_id
+    const group_id = incomingGroupId || external_id;
 
     await db.query(
       `INSERT INTO lead (
-        external_id, vorname, nachname, email, telefon,
+        external_id,                 -- eindeutige Lead-ID für außen
+        group_id,                    -- ✅ NEU: Gruppierung mehrerer Leads
+        vorname, nachname, email, telefon,
         event_datum, event_startzeit, event_endzeit, event_ort,
         kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
         wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
@@ -52,16 +63,19 @@ router.post('/', async (req, res) => {
         freitext_kunde_raw, intern_kommentar,
         ai_typ, ai_kommentar, ai_score_json
       ) VALUES (
-        $1, $2, $3, $4, $5,
-        $6, $7, $8, $9,
-        $10, $11, $12, $13,
-        $14, $15, $16, $17,
-        $18, $19, $20, $21,
-        $22, $23,
-        $24, $25, $26
+        $1, $2,
+        $3, $4, $5, $6,
+        $7, $8, $9, $10,
+        $11, $12, $13, $14,
+        $15, $16, $17, $18,
+        $19, $20, $21, $22,
+        $23, $24,
+        $25, $26, $27
       )`,
       [
-        external_id, vorname, nachname, email, telefon,
+        external_id,
+        group_id,                     // ✅
+        vorname, nachname, email, telefon,
         event_datum, event_startzeit, event_endzeit, event_ort,
         kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
         wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
@@ -71,7 +85,11 @@ router.post('/', async (req, res) => {
       ]
     );
 
-    res.status(201).json({ message: 'Lead gespeichert', lead_id: external_id });
+    res.status(201).json({
+      message: 'Lead gespeichert',
+      lead_id: external_id,
+      group_id           // ✅ gleich zurückgeben – praktisch für Folgeaktionen/Klone
+    });
   } catch (error) {
     console.error('Fehler beim Speichern:', error);
     res.status(500).json({ error: 'Serverfehler' });
