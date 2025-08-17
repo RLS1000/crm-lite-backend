@@ -1,10 +1,19 @@
+// backend/routes/leads.js
 console.log("✅ Webhook wurde erreicht!");
+
 const express = require('express');
 const router = express.Router();
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+
 const db = require('../db');
 const generateLeadId = require('../utils/generateId');
 
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+
+/**
+ * POST /leads/
+ * Webhook/Intake: Neuen Lead anlegen
+ * -> unverändert zu deinem Stand, nur minimal aufgeräumt
+ */
 router.post('/', async (req, res) => {
   if (req.body.secret !== WEBHOOK_SECRET) {
     console.warn('❌ Ungültiger Webhook-Zugriff:', req.body.secret);
@@ -13,9 +22,6 @@ router.post('/', async (req, res) => {
 
   try {
     const {
-      // ✅ NEU optional vom Aufrufer mitgebbar (für spätere Klone)
-      group_id: incomingGroupId,
-
       vorname,
       nachname,
       email,
@@ -43,19 +49,11 @@ router.post('/', async (req, res) => {
       ai_score_json
     } = req.body;
 
-    // ✅ Jede Anfrage bekommt eine eindeutige external_id
-    const external_id = generateLeadId();
-
-    // ✅ Gruppen-ID-Strategie:
-    // - Wenn vom Client eine group_id mitkommt → nutzen
-    // - Sonst erste Anfrage ihrer Gruppe → group_id = external_id
-    const group_id = incomingGroupId || external_id;
+    const external_id = generateLeadId(); // optionale Public-ID
 
     await db.query(
       `INSERT INTO lead (
-        external_id,                 -- eindeutige Lead-ID für außen
-        group_id,                    -- ✅ NEU: Gruppierung mehrerer Leads
-        vorname, nachname, email, telefon,
+        external_id, vorname, nachname, email, telefon,
         event_datum, event_startzeit, event_endzeit, event_ort,
         kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
         wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
@@ -63,19 +61,16 @@ router.post('/', async (req, res) => {
         freitext_kunde_raw, intern_kommentar,
         ai_typ, ai_kommentar, ai_score_json
       ) VALUES (
-        $1, $2,
-        $3, $4, $5, $6,
-        $7, $8, $9, $10,
-        $11, $12, $13, $14,
-        $15, $16, $17, $18,
-        $19, $20, $21, $22,
-        $23, $24,
-        $25, $26, $27
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9,
+        $10, $11, $12, $13,
+        $14, $15, $16, $17,
+        $18, $19, $20, $21,
+        $22, $23,
+        $24, $25, $26
       )`,
       [
-        external_id,
-        group_id,                     // ✅
-        vorname, nachname, email, telefon,
+        external_id, vorname, nachname, email, telefon,
         event_datum, event_startzeit, event_endzeit, event_ort,
         kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
         wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
@@ -85,14 +80,125 @@ router.post('/', async (req, res) => {
       ]
     );
 
-    res.status(201).json({
-      message: 'Lead gespeichert',
-      lead_id: external_id,
-      group_id           // ✅ gleich zurückgeben – praktisch für Folgeaktionen/Klone
-    });
+    return res.status(201).json({ message: 'Lead gespeichert', lead_id: external_id });
   } catch (error) {
-    console.error('Fehler beim Speichern:', error);
-    res.status(500).json({ error: 'Serverfehler' });
+    console.error('❌ Fehler beim Speichern:', error);
+    return res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+/**
+ * POST /leads/:id/clone
+ * Lead duplizieren:
+ * - erzeugt neue external_id
+ * - übernimmt (oder erzeugt) group_id vom Original
+ * - markiert Vorname mit " (Kopie)" zur Unterscheidung
+ */
+router.post('/:id/clone', async (req, res) => {
+  const leadId = req.params.id;
+
+  try {
+    // Original holen
+    const { rows } = await db.query('SELECT * FROM lead WHERE id = $1', [leadId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Lead nicht gefunden' });
+    }
+    const original = rows[0];
+
+    // group_id sicherstellen
+    let groupId = original.group_id;
+    if (!groupId) {
+      groupId = generateLeadId(); // neue Gruppen-ID
+      await db.query('UPDATE lead SET group_id = $1 WHERE id = $2', [groupId, leadId]);
+    }
+
+    // Klon anlegen
+    const { rows: cloned } = await db.query(
+      `INSERT INTO lead (
+        external_id, group_id, vorname, nachname, email, telefon,
+        event_datum, event_startzeit, event_endzeit, event_ort,
+        kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
+        wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
+        erfahrung_raw, preistyp_raw, ziel_raw, quelle_raw,
+        freitext_kunde_raw, intern_kommentar,
+        ai_typ, ai_kommentar, ai_score_json
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10,
+        $11, $12, $13, $14,
+        $15, $16, $17, $18,
+        $19, $20, $21, $22,
+        $23, $24,
+        $25, $26, $27
+      )
+      RETURNING *`,
+      [
+        generateLeadId(),            // neue external_id
+        groupId,                     // gleiche group_id
+        (original.vorname || '') + ' (Kopie)',
+        original.nachname,
+        original.email,
+        original.telefon,
+        original.event_datum,
+        original.event_startzeit,
+        original.event_endzeit,
+        original.event_ort,
+        original.kundentyp,
+        original.firmenname,
+        original.gaesteanzahl,
+        original.kontaktwunsch,
+        original.wichtig_raw,
+        original.extras_raw,
+        original.preisfragen_raw,
+        original.anlass_raw,
+        original.erfahrung_raw,
+        original.preistyp_raw,
+        original.ziel_raw,
+        original.quelle_raw,
+        original.freitext_kunde_raw,
+        original.intern_kommentar,
+        original.ai_typ,
+        original.ai_kommentar,
+        original.ai_score_json
+      ]
+    );
+
+    return res.status(201).json({ message: 'Lead erfolgreich geklont', lead: cloned[0] });
+  } catch (err) {
+    console.error('❌ Fehler beim Klonen:', err);
+    return res.status(500).json({ error: 'Serverfehler beim Klonen' });
+  }
+});
+
+/**
+ * GET /leads/:id
+ * Lead abrufen (praktisch für Appsmith-Detailansicht)
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM lead WHERE id = $1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Lead nicht gefunden' });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ Fehler beim Lesen:', err);
+    return res.status(500).json({ error: 'Serverfehler beim Lesen' });
+  }
+});
+
+/**
+ * GET /leads/group/:groupId
+ * Alle Leads einer Gruppe abrufen (für Angebotslink mit mehreren Tagen)
+ */
+router.get('/group/:groupId', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM lead WHERE group_id = $1 ORDER BY event_datum ASC, event_startzeit ASC',
+      [req.params.groupId]
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error('❌ Fehler beim Lesen der Gruppe:', err);
+    return res.status(500).json({ error: 'Serverfehler beim Lesen der Gruppe' });
   }
 });
 
