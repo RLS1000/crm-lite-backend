@@ -35,7 +35,7 @@ router.get('/angebot/:token', async (req, res) => {
     // 1) Lead zum Token laden
     const leadResult = await db.query(`
       SELECT 
-        id, vorname, nachname, email, telefon, firmenname,
+        id, external_id, vorname, nachname, email, telefon, firmenname,
         event_datum, event_startzeit, event_endzeit, event_ort,
         kundentyp, angebot_bestaetigt, angebot_bestaetigt_am, group_id
       FROM lead
@@ -241,6 +241,65 @@ router.get('/leads/:id/artikel', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 📨 Feedback zum Angebotslink (keine Bestätigung nötig)
+router.post('/angebot/:token/feedback', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { message, email } = req.body || {};
+
+    if (!message || String(message).trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'Bitte eine Nachricht eingeben.' });
+    }
+
+    // Lead zum Token laden (inkl. external_id für Referenz)
+    const leadQ = await db.query(
+      `SELECT id, external_id, vorname, nachname, email AS lead_email
+         FROM lead
+        WHERE angebot_token = $1`,
+      [token]
+    );
+    if (!leadQ.rows.length) {
+      return res.status(404).json({ success: false, message: 'Angebot/Lead nicht gefunden.' });
+    }
+    const lead = leadQ.rows[0];
+
+    // Feedback speichern
+    await db.query(
+      `INSERT INTO lead_feedback (lead_id, angebot_token, sender_email, message)
+       VALUES ($1, $2, $3, $4)`,
+      [lead.id, token, email || lead.lead_email || null, message.trim()]
+    );
+
+    // Admin-Mail verschicken
+    // mailService.getSMTPConfig() liefert u.a. empfaenger_betreiber aus system_config.email_betreiber
+    const { sendMail } = require('../services/mailService');
+    const cfgQ = await db.query(
+      `SELECT value FROM system_config WHERE key = 'email_betreiber' LIMIT 1`
+    );
+    const adminTo = cfgQ.rows?.[0]?.value;
+
+    if (adminTo) {
+      const subject = `Feedback zum Angebot ${lead.external_id || ('Lead#' + lead.id)}`;
+      const fromLine = email ? `Absender: ${email}` : 'Absender: (unbekannt)';
+      const nameLine = (lead.vorname || lead.nachname) ? `Kunde: ${lead.vorname || ''} ${lead.nachname || ''}`.trim() : '';
+      const html = `
+        <p>Es ist Feedback zu einem Angebotslink eingegangen.</p>
+        <p><b>Referenz:</b> ${lead.external_id || ('Lead#' + lead.id)}</p>
+        <p>${nameLine}</p>
+        <p>${fromLine}</p>
+        <hr/>
+        <p style="white-space:pre-wrap;">${String(message).replace(/</g,'&lt;')}</p>
+      `;
+      await sendMail({ to: adminTo, subject, html });
+    }
+
+    return res.json({ success: true, message: 'Vielen Dank! Dein Feedback wurde übermittelt.' });
+  } catch (err) {
+    console.error('❌ Fehler bei Angebots-Feedback:', err);
+    return res.status(500).json({ success: false, message: 'Serverfehler beim Senden des Feedbacks.' });
   }
 });
 
