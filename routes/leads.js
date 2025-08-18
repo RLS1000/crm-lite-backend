@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 
 const db = require('../db');
-const generateLeadId = require('../utils/generateId');
+const { generateLeadId, generateGroupId } = require('../utils/generateId');
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -108,7 +108,7 @@ router.get('/group/:groupId', async (req, res) => {
  * POST /leads/:id/clone
  * Lead duplizieren:
  * - erzeugt neue external_id
- * - übernimmt (oder erzeugt) group_id vom Original
+ * - übernimmt (oder erzeugt) group_id vom Original (GL-Schema)
  * - markiert Vorname mit " (Kopie)" zur Unterscheidung
  */
 router.post('/:id/clone', async (req, res) => {
@@ -126,10 +126,10 @@ router.post('/:id/clone', async (req, res) => {
     }
     const original = rows[0];
 
-    // group_id sicherstellen
+    // group_id sicherstellen (jetzt mit GL-Schema)
     let groupId = original.group_id;
     if (!groupId) {
-      groupId = generateLeadId(); // neue Gruppen-ID
+      groupId = generateGroupId(); // neue Gruppen-ID im GL-Schema
       await db.query('UPDATE lead SET group_id = $1 WHERE id = $2', [groupId, leadId]);
     }
 
@@ -154,8 +154,8 @@ router.post('/:id/clone', async (req, res) => {
       )
       RETURNING *`,
       [
-        generateLeadId(),            // neue external_id
-        groupId,                     // gleiche group_id
+        generateLeadId(),            // neue external_id (L-Schema)
+        groupId,                     // gleiche group_id (GL-Schema)
         (original.vorname || '') + ' (Kopie)',
         original.nachname,
         original.email,
