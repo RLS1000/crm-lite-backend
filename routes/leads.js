@@ -12,7 +12,6 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 /**
  * POST /leads/
  * Webhook/Intake: Neuen Lead anlegen
- * -> unverändert zu deinem Stand, nur minimal aufgeräumt
  */
 router.post('/', async (req, res) => {
   if (req.body.secret !== WEBHOOK_SECRET) {
@@ -88,6 +87,24 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * GET /leads/group/:groupId
+ * Alle Leads einer Gruppe abrufen (für Angebotslink mit mehreren Tagen)
+ * 👉 MUSS vor "/:id" stehen!
+ */
+router.get('/group/:groupId', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM lead WHERE group_id = $1 ORDER BY event_datum ASC, event_startzeit ASC',
+      [req.params.groupId]
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error('❌ Fehler beim Lesen der Gruppe:', err);
+    return res.status(500).json({ error: 'Serverfehler beim Lesen der Gruppe' });
+  }
+});
+
+/**
  * POST /leads/:id/clone
  * Lead duplizieren:
  * - erzeugt neue external_id
@@ -96,6 +113,10 @@ router.post('/', async (req, res) => {
  */
 router.post('/:id/clone', async (req, res) => {
   const leadId = req.params.id;
+
+  if (!/^\d+$/.test(String(leadId))) {
+    return res.status(400).json({ error: 'Bad Request: ungültige Lead-ID' });
+  }
 
   try {
     // Original holen
@@ -163,7 +184,11 @@ router.post('/:id/clone', async (req, res) => {
       ]
     );
 
-    return res.status(201).json({ message: 'Lead erfolgreich geklont', lead: cloned[0] });
+    return res.status(201).json({
+      message: 'Lead erfolgreich geklont',
+      lead: cloned[0],
+      group_id: groupId
+    });
   } catch (err) {
     console.error('❌ Fehler beim Klonen:', err);
     return res.status(500).json({ error: 'Serverfehler beim Klonen' });
@@ -173,32 +198,19 @@ router.post('/:id/clone', async (req, res) => {
 /**
  * GET /leads/:id
  * Lead abrufen (praktisch für Appsmith-Detailansicht)
+ * 👉 Muss NACH allen spezifischeren Routen kommen
  */
 router.get('/:id', async (req, res) => {
   try {
+    if (!/^\d+$/.test(String(req.params.id))) {
+      return res.status(400).json({ error: 'Bad Request: ungültige Lead-ID' });
+    }
     const { rows } = await db.query('SELECT * FROM lead WHERE id = $1', [req.params.id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Lead nicht gefunden' });
     return res.json(rows[0]);
   } catch (err) {
     console.error('❌ Fehler beim Lesen:', err);
     return res.status(500).json({ error: 'Serverfehler beim Lesen' });
-  }
-});
-
-/**
- * GET /leads/group/:groupId
- * Alle Leads einer Gruppe abrufen (für Angebotslink mit mehreren Tagen)
- */
-router.get('/group/:groupId', async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      'SELECT * FROM lead WHERE group_id = $1 ORDER BY event_datum ASC, event_startzeit ASC',
-      [req.params.groupId]
-    );
-    return res.json(rows);
-  } catch (err) {
-    console.error('❌ Fehler beim Lesen der Gruppe:', err);
-    return res.status(500).json({ error: 'Serverfehler beim Lesen der Gruppe' });
   }
 });
 
