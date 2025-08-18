@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 
 const db = require('../db');
-const { generateLeadId, generateGroupId } = require('../utils/generateId'); // ⬅️ beide Importe
+const { generateLeadId, generateGroupId } = require('../utils/generateId'); // ⬅️ beide holen!
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
       ai_score_json
     } = req.body;
 
-    const external_id = generateLeadId(); // öffentliche ID (L-YYYYMMDD-XXXX)
+    const external_id = generateLeadId(); // öffentliche, menschenlesbare ID z.B. L-20250818-AB12
 
     await db.query(
       `INSERT INTO lead (
@@ -81,7 +81,7 @@ router.post('/', async (req, res) => {
 
     return res.status(201).json({ message: 'Lead gespeichert', lead_id: external_id });
   } catch (error) {
-    console.error('❌ Fehler beim Speichern:', error);
+    console.error('❌ Fehler beim Speichern:', error.message, error.stack);
     return res.status(500).json({ error: 'Serverfehler' });
   }
 });
@@ -99,7 +99,7 @@ router.get('/group/:groupId', async (req, res) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error('❌ Fehler beim Lesen der Gruppe:', err);
+    console.error('❌ Fehler beim Lesen der Gruppe:', err.message, err.stack);
     return res.status(500).json({ error: 'Serverfehler beim Lesen der Gruppe' });
   }
 });
@@ -108,7 +108,7 @@ router.get('/group/:groupId', async (req, res) => {
  * POST /leads/:id/clone
  * Lead duplizieren:
  * - erzeugt neue external_id
- * - übernimmt group_id; wenn fehlend oder nicht GL-*, wird auf neues GL-Schema migriert
+ * - sorgt für GL-GroupID (neu, falls leer oder UUID)
  * - markiert Vorname mit " (Kopie)" zur Unterscheidung
  */
 router.post('/:id/clone', async (req, res) => {
@@ -118,6 +118,10 @@ router.post('/:id/clone', async (req, res) => {
     return res.status(400).json({ error: 'Bad Request: ungültige Lead-ID' });
   }
 
+  // einfache Heuristik: UUID erkennen
+  const looksLikeUuid = (val) =>
+    typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
   try {
     // Original holen
     const { rows } = await db.query('SELECT * FROM lead WHERE id = $1', [leadId]);
@@ -126,10 +130,12 @@ router.post('/:id/clone', async (req, res) => {
     }
     const original = rows[0];
 
-    // group_id sicherstellen / migrieren auf GL-Format
+    // group_id sicherstellen (GL-Format)
     let groupId = original.group_id;
-    if (!groupId || !/^GL-/.test(groupId)) {
+
+    if (!groupId || looksLikeUuid(groupId)) {
       groupId = generateGroupId(); // z.B. GL-20250818-64J7
+      // Original sofort auf GL umstellen, damit Gruppe konsistent ist
       await db.query('UPDATE lead SET group_id = $1 WHERE id = $2', [groupId, leadId]);
     }
 
@@ -142,7 +148,7 @@ router.post('/:id/clone', async (req, res) => {
         wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
         erfahrung_raw, preistyp_raw, ziel_raw, quelle_raw,
         freitext_kunde_raw, intern_kommentar,
-        ai_typ, ai_kommentar, ai_score_json
+        ai_typ, ai_kommentar, ai_score_json, status
       ) VALUES (
         $1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10,
@@ -150,12 +156,12 @@ router.post('/:id/clone', async (req, res) => {
         $15, $16, $17, $18,
         $19, $20, $21, $22,
         $23, $24,
-        $25, $26, $27
+        $25, $26, $27, $28
       )
       RETURNING *`,
       [
-        generateLeadId(),            // neue external_id (L-…)
-        groupId,                     // gemeinsame group_id (GL-…)
+        generateLeadId(),            // neue external_id
+        groupId,                     // GL-Gruppe
         (original.vorname || '') + ' (Kopie)',
         original.nachname,
         original.email,
@@ -180,7 +186,8 @@ router.post('/:id/clone', async (req, res) => {
         original.intern_kommentar,
         original.ai_typ,
         original.ai_kommentar,
-        original.ai_score_json
+        original.ai_score_json,
+        original.status || 'neu'     // falls nötig mit übernehmen/Default
       ]
     );
 
@@ -190,7 +197,7 @@ router.post('/:id/clone', async (req, res) => {
       group_id: groupId
     });
   } catch (err) {
-    console.error('❌ Fehler beim Klonen:', err);
+    console.error('❌ Fehler beim Klonen:', err.message, err.stack);
     return res.status(500).json({ error: 'Serverfehler beim Klonen' });
   }
 });
@@ -209,7 +216,7 @@ router.get('/:id', async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: 'Lead nicht gefunden' });
     return res.json(rows[0]);
   } catch (err) {
-    console.error('❌ Fehler beim Lesen:', err);
+    console.error('❌ Fehler beim Lesen:', err.message, err.stack);
     return res.status(500).json({ error: 'Serverfehler beim Lesen' });
   }
 });
