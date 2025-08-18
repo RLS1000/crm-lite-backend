@@ -1,26 +1,17 @@
-// utils/generateId.js
+// backend/utils/generateId.js
 
-/**
- * Erzeugt eine eindeutige Lead-ID (bestehend aus Datum + zufälligem Suffix)
- * Beispiel: L-20250818-ABCD
- */
 function generateLeadId() {
+  // z.B. L-20250818-KQ5D
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `L-${today}-${rand}`;
 }
 
-/**
- * Erzeugt eine Group-ID für verbundene Leads (mehrere Tage / Varianten)
- * Beispiel: GL-20250818-64j7
- */
 function generateGroupId() {
+  // z.B. GL-20250818-64J7
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const rand = Math.random().toString(36).substring(2, 6).toLowerCase();
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `GL-${today}-${rand}`;
 }
 
-module.exports = {
-  generateLeadId,
-  generateGroupId
-};
+module.exports = { generateLeadId, generateGroupId };
