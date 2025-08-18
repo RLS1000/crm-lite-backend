@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 
 const db = require('../db');
-const { generateLeadId, generateGroupId } = require('../utils/generateId');
+const { generateLeadId, generateGroupId } = require('../utils/generateId'); // ⬅️ beide Importe
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
       ai_score_json
     } = req.body;
 
-    const external_id = generateLeadId(); // optionale Public-ID
+    const external_id = generateLeadId(); // öffentliche ID (L-YYYYMMDD-XXXX)
 
     await db.query(
       `INSERT INTO lead (
@@ -108,7 +108,7 @@ router.get('/group/:groupId', async (req, res) => {
  * POST /leads/:id/clone
  * Lead duplizieren:
  * - erzeugt neue external_id
- * - übernimmt (oder erzeugt) group_id vom Original (GL-Schema)
+ * - übernimmt group_id; wenn fehlend oder nicht GL-*, wird auf neues GL-Schema migriert
  * - markiert Vorname mit " (Kopie)" zur Unterscheidung
  */
 router.post('/:id/clone', async (req, res) => {
@@ -126,10 +126,10 @@ router.post('/:id/clone', async (req, res) => {
     }
     const original = rows[0];
 
-    // group_id sicherstellen (jetzt mit GL-Schema)
+    // group_id sicherstellen / migrieren auf GL-Format
     let groupId = original.group_id;
-    if (!groupId) {
-      groupId = generateGroupId(); // neue Gruppen-ID im GL-Schema
+    if (!groupId || !/^GL-/.test(groupId)) {
+      groupId = generateGroupId(); // z.B. GL-20250818-64J7
       await db.query('UPDATE lead SET group_id = $1 WHERE id = $2', [groupId, leadId]);
     }
 
@@ -154,8 +154,8 @@ router.post('/:id/clone', async (req, res) => {
       )
       RETURNING *`,
       [
-        generateLeadId(),            // neue external_id (L-Schema)
-        groupId,                     // gleiche group_id (GL-Schema)
+        generateLeadId(),            // neue external_id (L-…)
+        groupId,                     // gemeinsame group_id (GL-…)
         (original.vorname || '') + ' (Kopie)',
         original.nachname,
         original.email,
