@@ -32,6 +32,7 @@ router.get('/angebot/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
+    // 1) Lead zum Token laden
     const leadResult = await db.query(`
       SELECT 
         id, vorname, nachname, email, telefon, firmenname,
@@ -47,6 +48,7 @@ router.get('/angebot/:token', async (req, res) => {
 
     const lead = leadResult.rows[0];
 
+    // 2) Artikel des Token-Leads laden
     const artikelResult = await db.query(`
       SELECT 
         la.id, la.artikel_variante_id, la.anzahl, la.einzelpreis, la.bemerkung,
@@ -57,7 +59,47 @@ router.get('/angebot/:token', async (req, res) => {
       WHERE la.lead_id = $1
     `, [lead.id]);
 
-    res.json({ success: true, lead, artikel: artikelResult.rows });
+    // 3) Falls Gruppierung vorhanden: alle Leads der Gruppe inkl. Artikel mitliefern
+    let groupLeads = [];
+    if (lead.group_id) {
+      const groupRows = await db.query(
+        `SELECT 
+           id, vorname, nachname, email, telefon, firmenname,
+           event_datum, event_startzeit, event_endzeit, event_ort,
+           kundentyp, angebot_bestaetigt, angebot_bestaetigt_am, group_id
+         FROM lead
+         WHERE group_id = $1
+         ORDER BY event_datum ASC, event_startzeit ASC NULLS LAST`,
+        [lead.group_id]
+      );
+
+      // Für jeden Gruppen-Lead die Artikel laden und anhängen
+      groupLeads = [];
+      for (const gl of groupRows.rows) {
+        const { rows: glArtikel } = await db.query(`
+          SELECT 
+            la.id, la.artikel_variante_id, la.anzahl, la.einzelpreis, la.bemerkung,
+            av.variante_name, a.name AS artikel_name
+          FROM lead_artikel la
+          JOIN artikel_variante av ON la.artikel_variante_id = av.id
+          JOIN artikel a ON av.artikel_id = a.id
+          WHERE la.lead_id = $1
+        `, [gl.id]);
+
+        groupLeads.push({
+          ...gl,
+          artikel: glArtikel
+        });
+      }
+    }
+
+    // 4) Response
+    return res.json({
+      success: true,
+      lead,
+      artikel: artikelResult.rows,   // Artikel des Token-Leads (für Single-Ansicht)
+      groupLeads                     // Bei Gruppen vorhanden: Leads inkl. artikel
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: error.message });
