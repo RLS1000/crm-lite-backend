@@ -112,9 +112,9 @@ router.get('/group/:groupId', async (req, res) => {
  * - group_id des Originals übernehmen (oder GL neu vergeben, wenn leer)
  * - Vorname mit " (Kopie)" markieren
  */
+// POST /leads/:id/clone
 router.post('/:id/clone', async (req, res) => {
   const leadId = req.params.id;
-
   if (!/^\d+$/.test(String(leadId))) {
     return res.status(400).json({ error: 'Bad Request: ungültige Lead-ID' });
   }
@@ -127,63 +127,84 @@ router.post('/:id/clone', async (req, res) => {
     }
     const original = rows[0];
 
-    // group_id sicherstellen
+    // group_id sicherstellen – jetzt mit GL-Schema
     let groupId = original.group_id;
-    if (!groupId || !/^GL-\d{8}-[A-Z0-9]{4}$/.test(groupId)) {
-      groupId = generateGroupId(); // neue GL-… Gruppe
+    if (!groupId) {
+      // ⬇️ neue Group-ID im GL-Format
+      const generateGroupId = require('../utils/generateId').generateGroupId || require('../utils/generateId');
+      groupId = generateGroupId('GL');
       await db.query('UPDATE lead SET group_id = $1 WHERE id = $2', [groupId, leadId]);
     }
 
-    // Klon anlegen
-    const { rows: cloned } = await db.query(
-      `INSERT INTO lead (
-        external_id, group_id, vorname, nachname, email, telefon,
+    // Fallbacks für mögliche NOT NULLs / Defaults
+    const status = original.status || 'neu';
+    const erstellt_am = new Date(); // falls keine DB-Default gesetzt
+
+    // Klon anlegen (✅ status & erstellt_am explizit setzen)
+    const insertSql = `
+      INSERT INTO lead (
+        external_id, group_id, status,
+        vorname, nachname, email, telefon,
         event_datum, event_startzeit, event_endzeit, event_ort,
         kundentyp, firmenname, gaesteanzahl, kontaktwunsch,
         wichtig_raw, extras_raw, preisfragen_raw, anlass_raw,
         erfahrung_raw, preistyp_raw, ziel_raw, quelle_raw,
         freitext_kunde_raw, intern_kommentar,
-        ai_typ, ai_kommentar, ai_score_json
+        ai_typ, ai_kommentar, ai_score_json,
+        erstellt_am, location_id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10,
-        $11, $12, $13, $14,
-        $15, $16, $17, $18,
-        $19, $20, $21, $22,
-        $23, $24,
-        $25, $26, $27
+        $1, $2, $3,
+        $4, $5, $6, $7,
+        $8, $9, $10, $11,
+        $12, $13, $14, $15,
+        $16, $17, $18, $19,
+        $20, $21, $22, $23,
+        $24, $25,
+        $26, $27, $28,
+        $29, $30
       )
-      RETURNING *`,
-      [
-        generateLeadId(),            // neue external_id (L-…)
-        groupId,                     // gleiche GL-… Gruppe
-        (original.vorname || '') + ' (Kopie)',
-        original.nachname,
-        original.email,
-        original.telefon,
-        original.event_datum,
-        original.event_startzeit,
-        original.event_endzeit,
-        original.event_ort,
-        original.kundentyp,
-        original.firmenname,
-        original.gaesteanzahl,
-        original.kontaktwunsch,
-        original.wichtig_raw,
-        original.extras_raw,
-        original.preisfragen_raw,
-        original.anlass_raw,
-        original.erfahrung_raw,
-        original.preistyp_raw,
-        original.ziel_raw,
-        original.quelle_raw,
-        original.freitext_kunde_raw,
-        original.intern_kommentar,
-        original.ai_typ,
-        original.ai_kommentar,
-        original.ai_score_json
-      ]
-    );
+      RETURNING id, external_id, group_id, status
+    `;
+
+    const params = [
+      // IDs
+      require('../utils/generateId')(),      // neue external_id im L-Schema
+      groupId,
+      status,
+      // Person
+      (original.vorname || '') + ' (Kopie)',
+      original.nachname,
+      original.email,
+      original.telefon,
+      // Event
+      original.event_datum,
+      original.event_startzeit,
+      original.event_endzeit,
+      original.event_ort,
+      // Meta
+      original.kundentyp,
+      original.firmenname,
+      original.gaesteanzahl,
+      original.kontaktwunsch,
+      original.wichtig_raw,
+      original.extras_raw,
+      original.preisfragen_raw,
+      original.anlass_raw,
+      original.erfahrung_raw,
+      original.preistyp_raw,
+      original.ziel_raw,
+      original.quelle_raw,
+      original.freitext_kunde_raw,
+      original.intern_kommentar,
+      original.ai_typ,
+      original.ai_kommentar,
+      original.ai_score_json,
+      // Zeiten / Relationen
+      erstellt_am,
+      original.location_id || null
+    ];
+
+    const { rows: cloned } = await db.query(insertSql, params);
 
     return res.status(201).json({
       message: 'Lead erfolgreich geklont',
@@ -191,10 +212,12 @@ router.post('/:id/clone', async (req, res) => {
       group_id: groupId
     });
   } catch (err) {
-    console.error('❌ Fehler beim Klonen:', err);
-    return res.status(500).json({ error: err.message || 'Serverfehler beim Klonen' });
+    console.error('❌ Fehler beim Klonen:', err); // <-- vollständiges Logging
+    // Gebe die eigentliche DB-Message zurück, damit wir sehen was los ist
+    return res.status(500).json({ error: err.message });
   }
 });
+
 
 /**
  * GET /leads/:id
