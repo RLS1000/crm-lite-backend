@@ -37,7 +37,7 @@ router.get('/angebot/:token', async (req, res) => {
       SELECT 
         id, external_id, vorname, nachname, email, telefon, firmenname,
         event_datum, event_startzeit, event_endzeit, event_ort,
-        kundentyp, angebot_bestaetigt, angebot_bestaetigt_am, group_id
+        kundentyp, angebot_bestaetigt, angebot_bestaetigt_am, group_id, location_id
       FROM lead
       WHERE angebot_token = $1
     `, [token]);
@@ -48,6 +48,20 @@ router.get('/angebot/:token', async (req, res) => {
 
     const lead = leadResult.rows[0];
 
+    let locationInfo = null;
+
+    // Location zur ID laden (statt über event_ort)
+if (lead.location_id) {
+  const locQ = await db.query(`
+    SELECT name, strasse, plz, ort
+    FROM location
+    WHERE id = $1
+  `, [lead.location_id]);
+
+  if (locQ.rows.length > 0) {
+    locationInfo = locQ.rows[0];
+  }
+}
     // 2) Artikel des Token-Leads laden
     const artikelResult = await db.query(`
       SELECT 
@@ -98,7 +112,8 @@ router.get('/angebot/:token', async (req, res) => {
       success: true,
       lead,
       artikel: artikelResult.rows,   // Artikel des Token-Leads (für Single-Ansicht)
-      groupLeads                     // Bei Gruppen vorhanden: Leads inkl. artikel
+      groupLeads,                     // Bei Gruppen vorhanden: Leads inkl. artikel
+      locationInfo // 👈 wird nun sauber über location_id geholt
     });
   } catch (error) {
     console.error(error);
