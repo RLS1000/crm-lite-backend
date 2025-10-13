@@ -18,6 +18,21 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     }
     const lead = leadResult.rows[0];
 
+    // 🔍 Location zur lead.location_id holen
+    let location = null;
+
+    if (lead.location_id) {
+      const locQ = await db.query(`
+      SELECT name, strasse, plz, ort
+      FROM location
+      WHERE id = $1
+    `, [lead.location_id]);
+
+    if (locQ.rows.length > 0) {
+      location = locQ.rows[0];
+    }
+  }
+
     // ✅ Neu: Wenn bereits bestätigt, keine weitere Buchung zulassen
     if (lead.angebot_bestaetigt === true) {
       return res.status(200).json({ success: false, message: 'Angebot wurde bereits bestätigt.' });
@@ -70,21 +85,52 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     ]);
     const kundeId = kundeResult.rows[0].id;
 
-    // 📆 Buchung erstellen (inkl. lead_id)
-    const buchungResult = await db.query(`
-      INSERT INTO buchung (
-        kunde_id, status, event_datum, event_startzeit, event_endzeit,
-        event_anschrift_ort, lead_id, erstellt_am
-      ) VALUES ($1, 'bestätigt', $2, $3, $4, $5, $6, NOW())
-      RETURNING id
-    `, [
-      kundeId,
-      lead.event_datum,
-      lead.event_startzeit,
-      lead.event_endzeit,
-      lead.event_ort,
-      lead.id
-    ]);
+    // 📆 Buchung erstellen (inkl. Location-Infos und Kundendaten)
+const buchungResult = await db.query(`
+  INSERT INTO buchung (
+    kunde_id, status,
+    event_datum, event_startzeit, event_endzeit,
+    event_anschrift_ort, event_location,
+    event_anschrift_strasse, event_anschrift_plz, event_anschrift_ort,
+    lead_id, erstellt_am,
+    kunde_vorname, kunde_nachname, kunde_email, kunde_telefon, kunde_firma,
+    rechnungs_strasse, rechnungs_plz, rechnungs_ort,
+    kundentyp
+  )
+  VALUES (
+    $1, 'bestätigt',
+    $2, $3, $4,
+    $5, $6,
+    $7, $8, $9,
+    $10, NOW(),
+    $11, $12, $13, $14, $15,
+    $16, $17, $18,
+    $19
+  )
+  RETURNING id
+`, [
+  kundeId,
+  lead.event_datum,
+  lead.event_startzeit,
+  lead.event_endzeit,
+  lead.event_ort,
+  location?.name || null,
+  location?.strasse || null,
+  location?.plz || null,
+  location?.ort || null, // 👈 HIER der fehlende Ort
+  lead.id,
+  kontakt.vorname,
+  kontakt.nachname,
+  kontakt.email,
+  kontakt.telefon,
+  kontakt.firmenname || null,
+  rechnungs_strasse,
+  rechnungs_plz,
+  rechnungs_ort,
+  lead.kundentyp
+]);
+
+    
     const buchungId = buchungResult.rows[0].id;
 
     // 🧾 Artikel zuordnen
