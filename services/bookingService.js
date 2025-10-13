@@ -181,6 +181,19 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
       return rA - rB || a.artikel_name.localeCompare(b.artikel_name);
     });
 
+  // 8.5 Location laden, falls vorhanden
+let location = null;
+if (lead.location_id) {
+  const locQ = await db.query(`
+    SELECT name, strasse, plz, ort
+    FROM location
+    WHERE id = $1
+  `, [lead.location_id]);
+  if (locQ.rows.length) {
+    location = locQ.rows[0];
+  }
+}
+
   // 9. ✉️ Maildaten vorbereiten
   const artikelHTML = buchungArtikel.map(a =>
     `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${parseFloat(a.einzelpreis).toFixed(2)} €)`
@@ -208,6 +221,12 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
     event_ort: buchung.event_anschrift_ort,
 
     artikel: artikelHTML,
+
+     // 📍 Neue Felder für Location (optional)
+    location_name: location?.name || '',
+    location_strasse: location?.strasse || '',
+    location_plz: location?.plz || '',
+    location_ort: location?.ort || '',
 
     agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
     dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
