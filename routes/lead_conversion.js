@@ -8,6 +8,8 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
   try {
     const { id } = req.params;
     const { kontakt, rechnungsadresse } = req.body;
+    console.log("✅ Kontakt erhalten:", kontakt);
+    console.log("✅ Rechnungsadresse erhalten:", rechnungsadresse);
 
     // 1. Lead laden
     const leadResult = await db.query('SELECT * FROM lead WHERE id = $1', [id]);
