@@ -63,15 +63,24 @@ if (lead.location_id) {
   }
 }
     // 2) Artikel des Token-Leads laden
-    const artikelResult = await db.query(`
-      SELECT 
-        la.id, la.artikel_variante_id, la.anzahl, la.einzelpreis, la.bemerkung,
-        av.variante_name, a.name AS artikel_name
-      FROM lead_artikel la
-      JOIN artikel_variante av ON la.artikel_variante_id = av.id
-      JOIN artikel a ON av.artikel_id = a.id
-      WHERE la.lead_id = $1
-    `, [lead.id]);
+  const artikelResult = await db.query(`
+    SELECT 
+      la.id, la.artikel_variante_id, la.anzahl, la.einzelpreis, la.bemerkung,
+      av.variante_name, av.typ, a.name AS artikel_name
+    FROM lead_artikel la
+    JOIN artikel_variante av ON la.artikel_variante_id = av.id
+    JOIN artikel a ON av.artikel_id = a.id
+    WHERE la.lead_id = $1
+    ORDER BY 
+      CASE 
+        WHEN av.typ = 'Fotobox' THEN 1
+        WHEN av.typ = 'Extra' THEN 2
+        WHEN av.typ = 'Service' THEN 3
+        WHEN av.typ = 'Lieferung' THEN 4
+        ELSE 5
+      END,
+      a.name ASC
+  `, [lead.id]);
 
     // 3) Falls Gruppierung vorhanden: alle Leads der Gruppe inkl. Artikel mitliefern
     let groupLeads = [];
