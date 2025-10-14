@@ -199,6 +199,12 @@ if (lead.location_id) {
     `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${parseFloat(a.einzelpreis).toFixed(2)} €)`
   ).join('<br>');
 
+  const artikelSumme = buchungArtikel.reduce((sum, a) => {
+  const preis = parseFloat(a.einzelpreis) || 0;
+  const anzahl = a.anzahl || 0;
+  return sum + (preis * anzahl);
+  }, 0);
+
   const mailData = {
     name: `${buchung.vorname} ${buchung.nachname}`,
     vorname: buchung.vorname,
@@ -221,6 +227,7 @@ if (lead.location_id) {
     event_ort: buchung.event_anschrift_ort,
 
     artikel: artikelHTML,
+    artikel_summe: artikelSumme.toFixed(2),
 
      // 📍 Neue Felder für Location (optional)
     location_name: location?.name || '',
