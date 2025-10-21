@@ -109,19 +109,55 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
 
   // 5. Buchung anlegen
   const buchungResult = await db.query(`
-    INSERT INTO buchung (
-      kunde_id, status, event_datum, event_startzeit, event_endzeit,
-      event_anschrift_ort, lead_id, erstellt_am
-    ) VALUES ($1, 'bestaetigt', $2, $3, $4, $5, $6, NOW())
-    RETURNING id
-  `, [
-    kundeId,
-    lead.event_datum,
-    lead.event_startzeit,
-    lead.event_endzeit,
-    lead.event_ort,
-    lead.id
-  ]);
+  INSERT INTO buchung (
+    kunde_id, status,
+    event_datum, event_startzeit, event_endzeit,
+    event_anschrift_ort, event_location,
+    event_anschrift_strasse, event_anschrift_plz,
+    hinweistext_kunde, intern_kommentar,
+    lead_id, erstellt_am,
+
+    kunde_vorname, kunde_nachname, kunde_email, kunde_telefon, kunde_firma,
+    rechnungs_strasse, rechnungs_plz, rechnungs_ort,
+    kundentyp, anlass_raw, kontaktwunsch
+  )
+  VALUES (
+    $1, 'bestätigt',
+    $2, $3, $4,
+    $5, $6,
+    $7, $8,
+    $9, $10,
+    $11, NOW(),
+    $12, $13, $14, $15, $16,
+    $17, $18, $19,
+    $20, $21, $22
+  )
+  RETURNING id
+`, [
+  kundeId,
+  lead.event_datum,
+  lead.event_startzeit,
+  lead.event_endzeit,
+  lead.event_ort,                 // event_anschrift_ort
+  location?.name || null,        // event_location
+  location?.strasse || null,     // event_anschrift_strasse
+  location?.plz || null,         // event_anschrift_plz
+  lead.hinweistext_kunde,
+  lead.intern_kommentar,
+  lead.id,
+  kontakt.vorname,
+  kontakt.nachname,
+  kontakt.email,
+  kontakt.telefon,
+  kontakt.firmenname || null,
+  anschrift.rechnungsanschrift_strasse,
+  anschrift.rechnungsanschrift_plz,
+  anschrift.rechnungsanschrift_ort,
+  lead.kundentyp,
+  lead.anlass_raw,
+  lead.kontaktwunsch
+]);
+  
   const buchungId = buchungResult.rows[0].id;
 
   // 6. Artikel übernehmen
