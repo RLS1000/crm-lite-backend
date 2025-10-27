@@ -13,9 +13,9 @@ router.get('/:token', async (req, res) => {
       SELECT
         id, kunde_vorname, kunde_nachname, kunde_email,
         event_datum, event_startzeit, event_endzeit,
-        auftrag_token, fotolayout_url, qr_layout_url, online_galerie_url
+        token_kundenzugang, fotolayout_url, qr_layout_url, online_galerie_url
       FROM buchung
-      WHERE auftrag_token = $1
+      WHERE token_kundenzugang = $1
     `, [token]);
 
     if (bookingQ.rows.length === 0) {
