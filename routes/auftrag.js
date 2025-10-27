@@ -10,13 +10,18 @@ router.get('/:token', async (req, res) => {
 
     // 1) Hole Buchung zur Token-ID
     const bookingQ = await db.query(`
-      SELECT
-        id, kunde_vorname, kunde_nachname, kunde_email,
-        event_datum, event_startzeit, event_endzeit,
-        token_kundenzugang, fotolayout_url, qr_layout_url, online_galerie_url
-      FROM buchung
-      WHERE token_kundenzugang = $1
-    `, [token]);
+  SELECT
+    id,
+    kunde_vorname,
+    kunde_nachname,
+    kunde_email,
+    event_datum,
+    event_startzeit,
+    event_endzeit,
+    token_kundenzugang
+  FROM buchung
+  WHERE token_kundenzugang = $1
+`, [token]);
 
     if (bookingQ.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Buchung nicht gefunden' });
