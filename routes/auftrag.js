@@ -35,7 +35,12 @@ router.get('/:token', async (req, res) => {
     // 2) Lade Artikel zu dieser Buchung
     const artikelQ = await db.query(`
       SELECT
-        ba.id, ba.anzahl, ba.einzelpreis, av.variante_name, a.name AS artikel_name,
+        ba.id,
+        ba.anzahl,
+        ba.einzelpreis,
+        av.variante_name,
+        a.id AS artikel_id,        -- ✅ HINZUGEFÜGT!
+        a.name AS artikel_name,
         ba.bemerkung
       FROM buchung_artikel ba
       JOIN artikel_variante av ON ba.artikel_variante_id = av.id
