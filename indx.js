@@ -42,12 +42,15 @@ const angebotRoutes = require('./routes/angebot');
 const leadConversionRoutes = require('./routes/lead_conversion');
 // Locations (bestehend)
 const locationRoutes = require('./routes/location');
+// Kundenzugang Auftrag
+const auftragRoutes = require('./routes/auftrag');
 
 // Alles konsistent unter /api
 app.use('/api/leads', leadRoutes);
 app.use('/api', angebotRoutes);
 app.use('/api', leadConversionRoutes);
 app.use('/api', locationRoutes);
+app.use('/api/auftrag', auftragRoutes); // ✅ Neu
 
 /* ------------------------------ 404 + Error --------------------------- */
 app.use((req, res) => {
