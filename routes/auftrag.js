@@ -18,6 +18,9 @@ router.get('/:token', async (req, res) => {
     event_datum,
     event_startzeit,
     event_endzeit,
+    event_location,
+    event_anschrift_strasse,
+    event_anschrift_plz,
     token_kundenzugang
   FROM buchung
   WHERE token_kundenzugang = $1
