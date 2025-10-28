@@ -26,15 +26,18 @@ router.get('/:token', async (req, res) => {
         event_anschrift_strasse,
         event_anschrift_plz,
         event_anschrift_ort,
+        rechnungs_name,
         rechnungs_strasse,
         rechnungs_plz,
         rechnungs_ort,
         token_kundenzugang,
+        fotos_bereit,
         layout_fertig,
         layout_qr_fertig,
         galerie_aktiv,
         rechnung_fertig,
-        rechnung_bezahlt
+        rechnung_bezahlt,
+        fotodownload_link
       FROM buchung
       WHERE token_kundenzugang = $1
     `, [token]);
@@ -51,6 +54,7 @@ router.get('/:token', async (req, res) => {
         ba.id,
         ba.anzahl,
         ba.einzelpreis,
+        ba.artikel_variante_id,
         av.variante_name,
         a.id AS artikel_id,
         a.name AS artikel_name,
@@ -59,6 +63,15 @@ router.get('/:token', async (req, res) => {
       JOIN artikel_variante av ON ba.artikel_variante_id = av.id
       JOIN artikel a ON av.artikel_id = a.id
       WHERE ba.buchung_id = $1
+      ORDER BY 
+        CASE 
+          WHEN av.typ = 'Fotobox' THEN 1
+          WHEN av.typ = 'Extra' THEN 2
+          WHEN av.typ = 'Service' THEN 3
+          WHEN av.typ = 'Lieferung' THEN 4
+          ELSE 5
+        END,
+        a.name ASC
     `, [buchung.id]);
 
     const artikel = artikelQ.rows;
