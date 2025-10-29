@@ -107,6 +107,19 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
 
   const kundeId = kundeResult.rows[0].id;
 
+  // 8.5 Location laden, falls vorhanden
+let location = null;
+if (lead.location_id) {
+  const locQ = await db.query(`
+    SELECT name, strasse, plz, ort
+    FROM location
+    WHERE id = $1
+  `, [lead.location_id]);
+  if (locQ.rows.length) {
+    location = locQ.rows[0];
+  }
+}
+
   // 5. Buchung anlegen
   const buchungResult = await db.query(`
   INSERT INTO buchung (
@@ -217,18 +230,7 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
       return rA - rB || a.artikel_name.localeCompare(b.artikel_name);
     });
 
-  // 8.5 Location laden, falls vorhanden
-let location = null;
-if (lead.location_id) {
-  const locQ = await db.query(`
-    SELECT name, strasse, plz, ort
-    FROM location
-    WHERE id = $1
-  `, [lead.location_id]);
-  if (locQ.rows.length) {
-    location = locQ.rows[0];
-  }
-}
+  
 
   // 9. ✉️ Maildaten vorbereiten
   const artikelHTML = buchungArtikel.map(a =>
