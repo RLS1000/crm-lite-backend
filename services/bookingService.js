@@ -132,7 +132,7 @@ if (lead.location_id) {
 
     kunde_vorname, kunde_nachname, kunde_email, kunde_telefon, kunde_firma,
     rechnungs_strasse, rechnungs_plz, rechnungs_ort,
-    kundentyp, anlass_raw, kontaktwunsch
+    kundentyp, anlass_raw, kontaktwunsch, token_kundenzugang
   )
   VALUES (
     $1, 'bestätigt',
@@ -143,7 +143,7 @@ if (lead.location_id) {
     $11, NOW(),
     $12, $13, $14, $15, $16,
     $17, $18, $19,
-    $20, $21, $22
+    $20, $21, $22, $23
   )
   RETURNING id
 `, [
@@ -168,7 +168,8 @@ if (lead.location_id) {
   anschrift.rechnungsanschrift_ort,
   lead.kundentyp,
   lead.anlass_raw,
-  lead.kontaktwunsch
+  lead.kontaktwunsch,
+  lead.angebot_token
 ]);
   
   const buchungId = buchungResult.rows[0].id;
