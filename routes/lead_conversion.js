@@ -19,19 +19,19 @@ router.post('/lead/:id/convert-to-booking', async (req, res) => {
     const lead = leadResult.rows[0];
 
     // 🔍 Location zur lead.location_id holen
-    let location = null;
+  let location = null;
 
-    if (lead.location_id) {
-      const locQ = await db.query(`
-      SELECT name, strasse, plz, ort
-      FROM location
-      WHERE id = $1
-    `, [lead.location_id]);
+if (lead.location_id) {
+  const locQ = await db.query(`
+    SELECT name, strasse, plz, ort
+    FROM location
+    WHERE id = $1
+  `, [lead.location_id]);
 
-    if (locQ.rows.length > 0) {
-      location = locQ.rows[0];
-    }
+  if (locQ.rows.length > 0) {
+    location = locQ.rows[0]; // ✅ keine neue Deklaration mit const/let!
   }
+}
 
     // ✅ Neu: Wenn bereits bestätigt, keine weitere Buchung zulassen
     if (lead.angebot_bestaetigt === true) {
