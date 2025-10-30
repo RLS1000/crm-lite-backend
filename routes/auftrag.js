@@ -121,26 +121,57 @@ router.patch('/:token/layout', async (req, res) => {
 
     const buchungId = buchungQ.rows[0].id;
 
-    // 2) Layout-Felder updaten
-    await db.query(`
-      UPDATE buchung SET
-        fotolayout_style = $1,
-        fotolayout_farbe = $2,
-        fotolayout_text = $3,
-        fotolayout_datum = $4,
-        fotolayout_kundenfreigabe = $5,
-        fotolayout_freigabe_am = CASE
-          WHEN $5 = TRUE AND fotolayout_freigabe_am IS NULL THEN NOW()
-          ELSE fotolayout_freigabe_am
-        END
-      WHERE id = $6
-    `, [style, farbe, text, datum, kundenfreigabe, buchungId]);
+// 2) Layout-Felder nur aktualisieren, wenn sie übergeben wurden
+    const updates = [];
+    const values = [];
+    let index = 1;
 
-    return res.json({ success: true, message: "Layout erfolgreich gespeichert." });
-  } catch (error) {
-    console.error("❌ Fehler beim Layout-Speichern:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+    if (style !== undefined) {
+      updates.push(`fotolayout_style = $${index++}`);
+      values.push(style);
+    }
+    if (farbe !== undefined) {
+      updates.push(`fotolayout_farbe = $${index++}`);
+      values.push(farbe);
+    }
+    if (text !== undefined) {
+      updates.push(`fotolayout_text = $${index++}`);
+      values.push(text);
+    }
+    if (datum !== undefined) {
+      updates.push(`fotolayout_datum = $${index++}`);
+      values.push(datum);
+    }
+    if (kundenfreigabe !== undefined) {
+      updates.push(`fotolayout_kundenfreigabe = $${index++}`);
+      values.push(kundenfreigabe);
 
+      // Wenn Kundenfreigabe auf TRUE gesetzt wird → Freigabedatum automatisch eintragen
+      updates.push(`fotolayout_freigabe_am = CASE
+        WHEN $${index - 1} = TRUE AND fotolayout_freigabe_am IS NULL THEN NOW()
+        ELSE fotolayout_freigabe_am
+      END`);
+    }
+
+    // Wenn gar nichts übergeben wurde, Abbruch
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Keine Felder zum Aktualisieren übergeben."
+      });
+    }
+
+    // Buchungs-ID als letzter Wert
+    values.push(buchungId);
+
+    // Dynamisches SQL-Update zusammenbauen
+    const updateQuery = `
+      UPDATE buchung
+      SET ${updates.join(", ")}
+      WHERE id = $${index}
+    `;
+
+    await db.query(updateQuery, values);
+
+    return res.json({ success: true, message: "Layout erfolgreich gespeichert (selektives Update)." });
 module.exports = router;
