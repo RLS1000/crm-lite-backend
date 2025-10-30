@@ -174,4 +174,12 @@ router.patch('/:token/layout', async (req, res) => {
     await db.query(updateQuery, values);
 
     return res.json({ success: true, message: "Layout erfolgreich gespeichert (selektives Update)." });
+
+     } catch (error) {
+    console.error("❌ Fehler beim Layout-Speichern:", error);
+    res.status(500).json({ success: false, error: error.message });
+    
+  }
+});
+    
 module.exports = router;
