@@ -37,7 +37,14 @@ router.get('/:token', async (req, res) => {
         galerie_aktiv,
         rechnung_fertig,
         rechnung_bezahlt,
-        fotodownload_link
+        fotodownload_link,
+        fotolayout_style,
+        fotolayout_text,
+        fotolayout_datum,
+        fotolayout_farbe,
+        fotolayout_link,
+        fotolayout_kundenfreigabe,
+        fotolayout_freigabe_am
       FROM buchung
       WHERE token_kundenzugang = $1
     `, [token]);
@@ -84,6 +91,54 @@ router.get('/:token', async (req, res) => {
 
   } catch (error) {
     console.error("❌ Fehler in /api/auftrag/:token:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/auftrag/:token/layout
+router.patch('/:token/layout', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const {
+      style,
+      farbe,
+      text,
+      datum,
+      kundenfreigabe
+    } = req.body;
+
+    // Optional: Log zur Prüfung
+    console.log("📥 Layout-Update empfangen:", { style, farbe, text, datum, kundenfreigabe });
+
+    // 1) Buchung zur Token-ID finden
+    const buchungQ = await db.query(`
+      SELECT id FROM buchung WHERE token_kundenzugang = $1
+    `, [token]);
+
+    if (buchungQ.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Buchung nicht gefunden" });
+    }
+
+    const buchungId = buchungQ.rows[0].id;
+
+    // 2) Layout-Felder updaten
+    await db.query(`
+      UPDATE buchung SET
+        fotolayout_style = $1,
+        fotolayout_farbe = $2,
+        fotolayout_text = $3,
+        fotolayout_datum = $4,
+        fotolayout_kundenfreigabe = $5,
+        fotolayout_freigabe_am = CASE
+          WHEN $5 = TRUE AND fotolayout_freigabe_am IS NULL THEN NOW()
+          ELSE fotolayout_freigabe_am
+        END
+      WHERE id = $6
+    `, [style, farbe, text, datum, kundenfreigabe, buchungId]);
+
+    return res.json({ success: true, message: "Layout erfolgreich gespeichert." });
+  } catch (error) {
+    console.error("❌ Fehler beim Layout-Speichern:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
