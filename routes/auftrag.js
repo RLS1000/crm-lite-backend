@@ -182,7 +182,7 @@ router.patch('/:token/layout', async (req, res) => {
   }
 });
 
-router.patch("/api/auftrag/:token/rechnung", async (req, res) => {
+router.patch("/:token/rechnung", async (req, res) => {
   const { token } = req.params;
   const { name, strasse, plz, ort, kostenstelle } = req.body;
 
