@@ -184,26 +184,32 @@ router.patch('/:token/layout', async (req, res) => {
 });
 
 router.patch("/:token/rechnung", async (req, res) => {
-  const { token } = req.params;
-  const { name, strasse, plz, ort, kostenstelle } = req.body;
+  try {
+    const { token } = req.params;
+    const { name, strasse, plz, ort, kostenstelle } = req.body;
 
-  const result = await db.query(`
-    UPDATE buchung
-    SET rechnungs_name = $1,
-        rechnungs_strasse = $2,
-        rechnungs_plz = $3,
-        rechnungs_ort = $4,
-        rechnungs_kostenstelle = $5,
-        rechnungsadresse_geaendert_am = NOW()
-    WHERE token_kundenzugang = $6
-    RETURNING id
-  `, [name, strasse, plz, ort, kostenstelle, token]);
+    const result = await db.query(`
+      UPDATE buchung
+      SET rechnungs_name = $1,
+          rechnungs_strasse = $2,
+          rechnungs_plz = $3,
+          rechnungs_ort = $4,
+          rechnungs_kostenstelle = $5,
+          rechnungsadresse_geaendert_am = NOW()
+      WHERE token_kundenzugang = $6
+      RETURNING id
+    `, [name, strasse, plz, ort, kostenstelle, token]);
 
-  if (result.rowCount === 0) {
-    return res.status(404).json({ error: "Buchung nicht gefunden" });
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Buchung nicht gefunden" });
+    }
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error("❌ Fehler beim Aktualisieren der Rechnungsadresse:", error);
+    res.status(500).json({ error: "Fehler beim Speichern der Daten." });
   }
-
-  res.json({ success: true });
 });
     
 module.exports = router;
