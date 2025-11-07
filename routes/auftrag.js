@@ -30,6 +30,7 @@ router.get('/:token', async (req, res) => {
         rechnungs_strasse,
         rechnungs_plz,
         rechnungs_ort,
+        rechnungs_kostenstelle,
         token_kundenzugang,
         fotos_bereit,
         layout_fertig,
