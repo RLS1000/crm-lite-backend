@@ -273,7 +273,8 @@ if (lead.location_id) {
     location_strasse: location?.strasse || '',
     location_plz: location?.plz || '',
     location_ort: location?.ort || '',
-
+    
+    zusatzvereinbarung: lead.zusatzvereinbarung || '',
     agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
     dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
   };
