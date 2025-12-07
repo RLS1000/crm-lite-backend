@@ -1,4 +1,4 @@
-// services/bookingService.js
+  // services/bookingService.js
 const db = require('../db');
 const { sendMail } = require('./mailService');
 
@@ -78,7 +78,8 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
       : rechnungsadresse.rechnungsanschrift_plz,
     rechnungsanschrift_ort: rechnungsadresse.gleicheRechnungsadresse
       ? rechnungsadresse.anschrift_ort
-      : rechnungsadresse.rechnungsanschrift_ort
+      : rechnungsadresse.rechnungsanschrift_ort,
+    kostenstelle: rechnungsadresse.kostenstelle || null
   };
 
   // 4. Kunden anlegen
@@ -132,6 +133,7 @@ if (lead.location_id) {
 
     kunde_vorname, kunde_nachname, kunde_email, kunde_telefon, kunde_firma,
     rechnungs_strasse, rechnungs_plz, rechnungs_ort,
+    rechnungs_kostenstelle,
     kundentyp, anlass_raw, kontaktwunsch, token_kundenzugang
   )
   VALUES (
@@ -143,7 +145,8 @@ if (lead.location_id) {
     $11, NOW(),
     $12, $13, $14, $15, $16,
     $17, $18, $19,
-    $20, $21, $22, $23
+    $20, 
+    $21, $22, $23, $24
   )
   RETURNING id
 `, [
@@ -166,6 +169,7 @@ if (lead.location_id) {
   anschrift.rechnungsanschrift_strasse,
   anschrift.rechnungsanschrift_plz,
   anschrift.rechnungsanschrift_ort,
+  anschrift.kostenstelle,
   lead.kundentyp,
   lead.anlass_raw,
   lead.kontaktwunsch,
@@ -273,6 +277,7 @@ if (lead.location_id) {
     rechnungsanschrift_strasse: buchung.rechnungsanschrift_strasse,
     rechnungsanschrift_plz: buchung.rechnungsanschrift_plz,
     rechnungsanschrift_ort: buchung.rechnungsanschrift_ort,
+    rechnungs_kostenstelle: buchung.rechnungs_kostenstelle || "",
 
     event_datum: new Date(buchung.event_datum).toLocaleDateString("de-DE"),
     event_startzeit: buchung.event_startzeit?.slice(0, 5),
