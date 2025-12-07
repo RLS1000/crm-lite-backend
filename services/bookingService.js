@@ -244,6 +244,20 @@ if (lead.location_id) {
   return sum + (preis * anzahl);
   }, 0);
 
+  // Zusatzvereinbarung vorbereiten
+  const rawZusatz = lead.zusatzvereinbarung?.trim() || "";
+  let zusatzBlock = "";
+
+    if (rawZusatz.length > 0) {
+      zusatzBlock = `
+        <h3>Zusatzvereinbarung</h3>
+        <div style="background: #f7f7f7; border-left: 4px solid #4caf50; padding: 12px 14px; border-radius: 4px; font-size: 14px; line-height: 1.5; color: #333; margin-top: 6px;">
+          ${rawZusatz.replace(/\n/g, "<br>")}
+        </div>
+        <br>
+      `;
+    }
+
   const mailData = {
     name: `${buchung.vorname} ${buchung.nachname}`,
     vorname: buchung.vorname,
@@ -274,7 +288,7 @@ if (lead.location_id) {
     location_plz: location?.plz || '',
     location_ort: location?.ort || '',
     
-    zusatzvereinbarung: lead.zusatzvereinbarung || '',
+    zusatzvereinbarung_block: zusatzBlock,
     agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
     dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
   };
