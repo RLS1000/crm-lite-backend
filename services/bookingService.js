@@ -79,7 +79,7 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
     rechnungsanschrift_ort: rechnungsadresse.gleicheRechnungsadresse
       ? rechnungsadresse.anschrift_ort
       : rechnungsadresse.rechnungsanschrift_ort,
-    kostenstelle: rechnungsadresse.kostenstelle || null
+    kostenstelle: rechnungsadresse.rechnungs_kostenstelle || null
   };
 
   // 4. Kunden anlegen
