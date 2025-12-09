@@ -82,6 +82,11 @@ async function convertLeadToBooking({ leadId, kontakt, rechnungsadresse }) {
     kostenstelle: rechnungsadresse.rechnungs_kostenstelle || null
   };
 
+  // 3.1 Rechnungsdaten vorbereiten
+  const rechnungsName =
+  rechnungsadresse.rechnungs_name ||
+  (kontakt.firmenname && kontakt.firmenname.trim() !== "" ? kontakt.firmenname : `${kontakt.vorname} ${kontakt.nachname}`);
+
   // 4. Kunden anlegen
   const kundeResult = await db.query(`
     INSERT INTO kunde (
@@ -132,6 +137,7 @@ if (lead.location_id) {
     lead_id, erstellt_am,
 
     kunde_vorname, kunde_nachname, kunde_email, kunde_telefon, kunde_firma,
+    rechnungs_name,
     rechnungs_strasse, rechnungs_plz, rechnungs_ort,
     rechnungs_kostenstelle,
     kundentyp, anlass_raw, kontaktwunsch, token_kundenzugang
@@ -144,9 +150,10 @@ if (lead.location_id) {
     $9, $10,
     $11, NOW(),
     $12, $13, $14, $15, $16,
-    $17, $18, $19,
-    $20, 
-    $21, $22, $23, $24
+    $17,
+    $18, $19,$20, 
+    $21,
+    $22, $23, $24, $25 
   )
   RETURNING id
 `, [
@@ -166,6 +173,7 @@ if (lead.location_id) {
   kontakt.email,
   kontakt.telefon,
   kontakt.firmenname || null,
+  rechnungsName,
   anschrift.rechnungsanschrift_strasse,
   anschrift.rechnungsanschrift_plz,
   anschrift.rechnungsanschrift_ort,
