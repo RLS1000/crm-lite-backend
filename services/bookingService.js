@@ -254,7 +254,7 @@ if (lead.location_id) {
 
     if (rawZusatz.length > 0) {
       zusatzBlock = `
-        <h3>Zusatzvereinbarung</h3>
+        <h2>Zusatzvereinbarung</h2>
         <div style="background: #f7f7f7; border-left: 4px solid #4caf50; padding: 12px 14px; border-radius: 4px; font-size: 14px; line-height: 1.5; color: #333; margin-top: 6px;">
           ${rawZusatz.replace(/\n/g, "<br>")}
         </div>
