@@ -225,8 +225,8 @@ const buchungArtikelResult = await db.query(`
   SELECT 
     ba.*, 
     av.variante_name, 
-    av.typ,
-    a.name AS artikel_name
+    a.name AS artikel_name,
+    a.typ
   FROM buchung_artikel ba
   JOIN artikel_variante av ON ba.artikel_variante_id = av.id
   JOIN artikel a ON av.artikel_id = a.id
