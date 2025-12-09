@@ -221,13 +221,17 @@ if (lead.location_id) {
   `, [buchungId]);
   const buchung = buchungData.rows[0];
 
-  const buchungArtikelResult = await db.query(`
-    SELECT ba.*, av.variante_name, a.name AS artikel_name
-    FROM buchung_artikel ba
-    JOIN artikel_variante av ON ba.artikel_variante_id = av.id
-    JOIN artikel a ON av.artikel_id = a.id
-    WHERE ba.buchung_id = $1
-  `, [buchungId]);
+const buchungArtikelResult = await db.query(`
+  SELECT 
+    ba.*, 
+    av.variante_name, 
+    av.typ,
+    a.name AS artikel_name
+  FROM buchung_artikel ba
+  JOIN artikel_variante av ON ba.artikel_variante_id = av.id
+  JOIN artikel a ON av.artikel_id = a.id
+  WHERE ba.buchung_id = $1
+`, [buchungId]);
   const buchungArtikel = buchungArtikelResult.rows;
 
   const artikelTypReihenfolge = {
@@ -256,6 +260,22 @@ if (lead.location_id) {
   return sum + (preis * anzahl);
   }, 0);
 
+  const istPrivat = buchung.kundentyp?.toLowerCase() === "privat";
+    
+    let nettoBetrag, bruttoBetrag, mwstBetrag;
+    
+    if (istPrivat) {
+      // Preise sind brutto gespeichert
+      bruttoBetrag = artikelSumme;
+      nettoBetrag = artikelSumme / 1.19;
+      mwstBetrag = artikelSumme - nettoBetrag;
+    } else {
+      // Preise sind netto gespeichert
+      nettoBetrag = artikelSumme;
+      mwstBetrag = artikelSumme * 0.19;
+      bruttoBetrag = nettoBetrag + mwstBetrag;
+    }
+
   // Zusatzvereinbarung vorbereiten
   const rawZusatz = lead.zusatzvereinbarung?.trim() || "";
   let zusatzBlock = "";
@@ -282,6 +302,7 @@ if (lead.location_id) {
     anschrift_strasse: buchung.anschrift_strasse,
     anschrift_plz: buchung.anschrift_plz,
     anschrift_ort: buchung.anschrift_ort,
+    rechnungs_name: buchung.rechnungs_name || "",
     rechnungsanschrift_strasse: buchung.rechnungsanschrift_strasse,
     rechnungsanschrift_plz: buchung.rechnungsanschrift_plz,
     rechnungsanschrift_ort: buchung.rechnungsanschrift_ort,
@@ -292,9 +313,13 @@ if (lead.location_id) {
     event_endzeit: buchung.event_endzeit?.slice(0, 5),
     event_ort: buchung.event_anschrift_ort,
 
+    istPrivat: istPrivat,
     artikel: artikelHTML,
     artikel_summe: artikelSumme.toFixed(2),
-
+    betrag_netto: nettoBetrag.toFixed(2),
+    betrag_brutto: bruttoBetrag.toFixed(2),
+    betrag_mwst: mwstBetrag.toFixed(2),
+    
      // 📍 Neue Felder für Location (optional)
     location_name: location?.name || '',
     location_strasse: location?.strasse || '',
