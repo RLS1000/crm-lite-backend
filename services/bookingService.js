@@ -260,7 +260,7 @@ const buchungArtikelResult = await db.query(`
   return sum + (preis * anzahl);
   }, 0);
 
-  const istPrivat = buchung.kundentyp?.toLowerCase() === "privat";
+  const istPrivat = buchung.kundentyp?.toLowerCase().includes("privat");
     
     let nettoBetrag, bruttoBetrag, mwstBetrag;
     
