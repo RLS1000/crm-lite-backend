@@ -281,13 +281,13 @@ if (istPrivat) {
 // 🔥 3️⃣ Steuerblock erzeugen
 const steuerBlock = istPrivat
   ? `
-      <p>Gesamtsumme (inkl. USt.): <strong>${bruttoBetrag.toFixed(2)} €</strong></p>
-      <p>inkl. 19 % USt.: ${mwstBetrag.toFixed(2)} €</p>
+      <p>Gesamtsumme (inkl. USt.): <strong>${bruttoBetrag.toFixed(2)} €</strong></br>
+      inkl. 19 % USt.: ${mwstBetrag.toFixed(2)} €</p>
     `
   : `
-      <p>Gesamtsumme (netto): <strong>${nettoBetrag.toFixed(2)} €</strong></p>
-      <p>zzgl. 19 % USt.: ${mwstBetrag.toFixed(2)} €</p>
-      <p><strong>Gesamtbetrag (brutto): ${bruttoBetrag.toFixed(2)} €</strong></p>
+      <p>Gesamtsumme (netto): <strong>${nettoBetrag.toFixed(2)} €</strong></br>
+      zzgl. 19 % USt.: ${mwstBetrag.toFixed(2)} €</br>
+      <strong>Gesamtbetrag (brutto): ${bruttoBetrag.toFixed(2)} €</strong></p>
     `;
 
 // 🔥 4️⃣ Zusatzvereinbarung vorbereiten
@@ -296,7 +296,7 @@ let zusatzBlock = "";
 
 if (rawZusatz.length > 0) {
   zusatzBlock = `
-    <h2>Zusatzvereinbarung</h2>
+    <h3>Zusatzvereinbarung</h3>
     <div style="background: #f7f7f7; border-left: 4px solid #4caf50; padding: 12px 14px; border-radius: 4px; font-size: 14px; line-height: 1.5; color: #333;">
       ${rawZusatz.replace(/\n/g, "<br>")}
     </div>
