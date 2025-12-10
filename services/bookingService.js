@@ -250,87 +250,89 @@ const buchungArtikelResult = await db.query(`
   
 
   // 9. ✉️ Maildaten vorbereiten
-  const artikelHTML = buchungArtikel.map(a =>
-    `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${parseFloat(a.einzelpreis).toFixed(2)} €)`
-  ).join('<br>');
+const artikelHTML = buchungArtikel.map(a =>
+  `• ${a.artikel_name} – ${a.variante_name} (${a.anzahl} × ${parseFloat(a.einzelpreis).toFixed(2)} €)`
+).join('<br>');
 
-  const artikelSumme = buchungArtikel.reduce((sum, a) => {
+const artikelSumme = buchungArtikel.reduce((sum, a) => {
   const preis = parseFloat(a.einzelpreis) || 0;
   const anzahl = a.anzahl || 0;
   return sum + (preis * anzahl);
-  }, 0);
+}, 0);
 
-  const istPrivat = buchung.kundentyp?.toLowerCase().includes("privat");
-    
-    let nettoBetrag, bruttoBetrag, mwstBetrag;
-    
-    if (istPrivat) {
-      // Preise sind brutto gespeichert
-      bruttoBetrag = artikelSumme;
-      nettoBetrag = artikelSumme / 1.19;
-      mwstBetrag = artikelSumme - nettoBetrag;
-    } else {
-      // Preise sind netto gespeichert
-      nettoBetrag = artikelSumme;
-      mwstBetrag = artikelSumme * 0.19;
-      bruttoBetrag = nettoBetrag + mwstBetrag;
-    }
+// 🔥 1️⃣ Privatkunde ermitteln
+const istPrivat = buchung.kundentyp?.toLowerCase().includes("privat");
 
-  // Zusatzvereinbarung vorbereiten
-  const rawZusatz = lead.zusatzvereinbarung?.trim() || "";
-  let zusatzBlock = "";
+// 🔥 2️⃣ Netto / Brutto / MwSt berechnen
+let nettoBetrag, bruttoBetrag, mwstBetrag;
 
-    if (rawZusatz.length > 0) {
-      zusatzBlock = `
-        <h2>Zusatzvereinbarung</h2>
-        <div style="background: #f7f7f7; border-left: 4px solid #4caf50; padding: 12px 14px; border-radius: 4px; font-size: 14px; line-height: 1.5; color: #333; margin-top: 6px;">
-          ${rawZusatz.replace(/\n/g, "<br>")}
-        </div>
-        <br>
-      `;
-    }
+if (istPrivat) {
+  // Preise brutto gespeichert
+  bruttoBetrag = artikelSumme;
+  nettoBetrag = artikelSumme / 1.19;
+  mwstBetrag = bruttoBetrag - nettoBetrag;
+} else {
+  // Preise netto gespeichert
+  nettoBetrag = artikelSumme;
+  mwstBetrag = nettoBetrag * 0.19;
+  bruttoBetrag = nettoBetrag + mwstBetrag;
+}
 
-  const mailData = {
-    name: `${buchung.vorname} ${buchung.nachname}`,
-    vorname: buchung.vorname,
-    nachname: buchung.nachname,
-    email: buchung.email,
-    telefon: buchung.telefon,
-    firmenname: buchung.firma,
-    kundentyp: buchung.kundentyp,
+// 🔥 3️⃣ Steuerblock erzeugen (jetzt sind die Werte verfügbar)
+let steuerBlock = "";
 
-    anschrift_strasse: buchung.anschrift_strasse,
-    anschrift_plz: buchung.anschrift_plz,
-    anschrift_ort: buchung.anschrift_ort,
-    rechnungs_name: buchung.rechnungs_name || "",
-    rechnungsanschrift_strasse: buchung.rechnungsanschrift_strasse,
-    rechnungsanschrift_plz: buchung.rechnungsanschrift_plz,
-    rechnungsanschrift_ort: buchung.rechnungsanschrift_ort,
-    rechnungs_kostenstelle: buchung.rechnungs_kostenstelle || "",
+if (istPrivat) {
+  steuerBlock = `
+    <p>Gesamtsumme (inkl. USt.): <strong>${bruttoBetrag.toFixed(2)} €</strong></p>
+    <p>inkl. 19 % USt.: ${mwstBetrag.toFixed(2)} €</p>
+  `;
+} else {
+  steuerBlock = `
+    <p>Gesamtsumme (netto): <strong>${nettoBetrag.toFixed(2)} €</strong></p>
+    <p>zzgl. 19 % USt.: ${mwstBetrag.toFixed(2)} €</p>
+    <p><strong>Gesamtbetrag (brutto): ${bruttoBetrag.toFixed(2)} €</strong></p>
+  `;
+}
 
-    event_datum: new Date(buchung.event_datum).toLocaleDateString("de-DE"),
-    event_startzeit: buchung.event_startzeit?.slice(0, 5),
-    event_endzeit: buchung.event_endzeit?.slice(0, 5),
-    event_ort: buchung.event_anschrift_ort,
+// 🔥 4️⃣ Maildaten final
+const mailData = {
+  name: `${buchung.vorname} ${buchung.nachname}`,
+  vorname: buchung.vorname,
+  nachname: buchung.nachname,
+  email: buchung.email,
+  telefon: buchung.telefon,
+  firmenname: buchung.firma,
+  kundentyp: buchung.kundentyp,
 
-    istPrivat: istPrivat,
-    artikel: artikelHTML,
-    artikel_summe: artikelSumme.toFixed(2),
-    betrag_netto: nettoBetrag.toFixed(2),
-    betrag_brutto: bruttoBetrag.toFixed(2),
-    betrag_mwst: mwstBetrag.toFixed(2),
-    
-     // 📍 Neue Felder für Location (optional)
-    location_name: location?.name || '',
-    location_strasse: location?.strasse || '',
-    location_plz: location?.plz || '',
-    location_ort: location?.ort || '',
-    
-    zusatzvereinbarung_block: zusatzBlock,
-    agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
-    dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
-  };
+  anschrift_strasse: buchung.anschrift_strasse,
+  anschrift_plz: buchung.anschrift_plz,
+  anschrift_ort: buchung.anschrift_ort,
+  rechnungs_name: buchung.rechnungs_name || "",
+  rechnungsanschrift_strasse: buchung.rechnungsanschrift_strasse,
+  rechnungsanschrift_plz: buchung.rechnungsanschrift_plz,
+  rechnungsanschrift_ort: buchung.rechnungsanschrift_ort,
+  rechnungs_kostenstelle: buchung.rechnungs_kostenstelle || "",
 
+  event_datum: new Date(buchung.event_datum).toLocaleDateString("de-DE"),
+  event_startzeit: buchung.event_startzeit?.slice(0, 5),
+  event_endzeit: buchung.event_endzeit?.slice(0, 5),
+
+  artikel: artikelHTML,
+
+  steuer_block: steuerBlock, // 🔥 das Template bekommt nur noch diesen Block
+
+  // Location
+  location_name: location?.name || '',
+  location_strasse: location?.strasse || '',
+  location_plz: location?.plz || '',
+  location_ort: location?.ort || '',
+
+  zusatzvereinbarung_block: zusatzBlock,
+  agb_link: 'https://mrknips.de/allgemeine-geschaeftsbedingungen',
+  dsgvo_link: 'https://mrknips.de/datenschutzerklaerung',
+};
+  
+  
   // 10. Templates laden
   const eventTemplatesResult = await db.query(`
     SELECT e.*, t.subject, t.content, t.recipient, t.cc, t.bcc, t.reply_to
