@@ -313,6 +313,7 @@ const mailData = {
   telefon: buchung.telefon,
   firmenname: buchung.firma,
   kundentyp: buchung.kundentyp,
+  firma: buchung.kundentyp?.toLowerCase() === "firma",
 
   anschrift_strasse: buchung.anschrift_strasse,
   anschrift_plz: buchung.anschrift_plz,
