@@ -36,6 +36,8 @@ router.get('/:token', async (req, res) => {
         layout_fertig,
         layout_qr_fertig,
         galerie_aktiv,
+        onlinegalerie_feedbacklink,
+        onlinegalerie_passwort,
         rechnung_fertig,
         rechnung_bezahlt,
         fotodownload_link,
